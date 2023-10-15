@@ -66,7 +66,7 @@ def _parse_candles(
     while True:
         start_str = f"?from={start_date.isoformat()}" if start_date else ""
         response = utils.json_api_call(
-            f"https://iss.moex.com/iss/history/engines/stock/markets/{ticker.market}/boards/{board}/"
+            f"https://iss.moex.com/iss/history{ticker.market.path}/boards/{board}/"
             f"securities/{ticker.secid}.json{start_str}"
         )
         history = response["history"]
@@ -94,7 +94,7 @@ def _parse_candles(
                     mid_price=line_dict.get("WAPRICE"),
                     numtrades=line_dict.get("NUMTRADES"),
                     volume=line_dict.get("VOLUME"),
-                    value=line_dict["VALUE"],
+                    value=line_dict.get("VALUE"),
                 )
             )
         if len(data) == 0 or (end_date and start_date and start_date > end_date):

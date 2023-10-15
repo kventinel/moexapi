@@ -7,6 +7,9 @@ from . import markets
 from . import utils
 
 
+logger = utils.initialize_logging(__file__)
+
+
 @dataclasses.dataclass
 class OneBoardTicker:
     secid: str
@@ -26,8 +29,20 @@ class Ticker:
     subtype: T.Optional[str]
 
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
+        if len(secid) == 3:
+            secid = f"{secid}RUB_TOD"
         tickers = _parse_tickers(market=market, board=board, secid=secid)
+        if len(tickers) == 0 and market is None:
+            tickers = [
+                ticker
+                for ticker in _parse_tickers(market=markets.Markets.CURRENCY, board=board) if ticker.shortname == secid
+            ]
+        if len(tickers) == 0 and secid == 'RSTI':
+            logger.info("change RSTI to FEES")
+            tickers = _parse_tickers(market=market, board=board, secid="FEES")
         assert len(tickers) > 0, f"Can't find ticker {secid}"
+        if any(ticker.secid != tickers[0].secid for ticker in tickers):
+            raise RuntimeError(f"Different secids for ticker {secid}")
         if any(ticker.market != tickers[0].market for ticker in tickers):
             raise RuntimeError(f"Different markets for ticker {secid}")
         if any(ticker.shortname != tickers[0].shortname for ticker in tickers):
@@ -36,7 +51,7 @@ class Ticker:
         main_tickers = [ticker for ticker in tickers if ticker.board == boards.get_main_board(ticker_boards)]
         if len(main_tickers) != 1:
             raise RuntimeError(f"Can't find main ticker {main_tickers}")
-        self.secid = secid
+        self.secid = tickers[0].secid
         self.boards = list(set(ticker.board for ticker in tickers))
         self.market = tickers[0].market
         self.shortname = tickers[0].shortname
@@ -92,8 +107,7 @@ def _parse_tickers(
     secid_str = f"/securities/{secid}" if secid else "/securities"
     board_str = f"/boards/{board}" if board else ""
     if market:
-        market_str = f"/markets/{market}" if market else ""
-        url = f"https://iss.moex.com/iss/engines/stock{market_str}{board_str}{secid_str}.json"
+        url = f"https://iss.moex.com/iss{market.path}{board_str}{secid_str}.json"
         return _parse_response(market, utils.json_api_call(url))
     tickers = []
     for market in markets.Markets:
