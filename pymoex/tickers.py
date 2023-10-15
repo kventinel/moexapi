@@ -72,6 +72,8 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             price = market_dict["CURRENTVALUE"]
         else:
             price = market_dict["LAST"]
+            if price is None:
+                price = sec_dict["PREVWAPRICE"]
         result.append(OneBoardTicker(
             secid=secid,
             board=sec_dict["BOARDID"],
