@@ -2,7 +2,8 @@ import typing as T
 
 import dataclasses
 
-from . import boards
+from . import boards as boards_lib
+from . import changeover
 from . import markets
 from . import utils
 
@@ -30,14 +31,14 @@ class Ticker:
 
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
         if len(secid) == 3:
-            secid = f"{secid}RUB_TOD"
+            secid = f"{secid}RUB_TOM"
         tickers = _parse_tickers(market=market, board=board, secid=secid)
         if len(tickers) == 0 and market is None:
             tickers = [
                 ticker
                 for ticker in _parse_tickers(market=markets.Markets.CURRENCY, board=board) if ticker.shortname == secid
             ]
-        if len(tickers) == 0 and secid in ('RSTI', 'RSTIP'):
+        if len(tickers) == 0 and secid in changeover.ChangesDict():
             logger.info(f"change {secid} to FEES")
             tickers = _parse_tickers(market=market, board=board, secid="FEES")
         assert len(tickers) > 0, f"Can't find ticker {secid}"
@@ -48,7 +49,7 @@ class Ticker:
         if any(ticker.shortname != tickers[0].shortname for ticker in tickers):
             raise RuntimeError(f"Different shortnames for ticker {secid}")
         ticker_boards = [ticker.board for ticker in tickers]
-        main_tickers = [ticker for ticker in tickers if ticker.board == boards.get_main_board(ticker_boards)]
+        main_tickers = [ticker for ticker in tickers if ticker.board == boards_lib.get_main_board(ticker_boards)]
         if len(main_tickers) != 1:
             raise RuntimeError(f"Can't find main ticker {main_tickers}")
         self.secid = tickers[0].secid
@@ -97,7 +98,7 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             board=sec_dict["BOARDID"],
             market=market,
             shortname=sec_dict["SHORTNAME"],
-            price=price * sec_dict.get("LOTVALUE", 1.0) if price is not None else None,
+            price=price,
         ))
     return result
 

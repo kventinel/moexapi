@@ -31,3 +31,16 @@ class Changeovers(list[Changeover]):
                     )
                 )
             
+
+class ChangesDict(dict[str, str]):
+    def __init__(self):
+        super().__init__()
+        changeovers = Changeovers(markets.Markets.SHARES)
+        self["RSTI"] = "FEES"
+        self["RSTIP"] = "FEES"
+        self["SFTL"] = "SOFL"
+        for line in changeovers:
+            new_secid = line.new_secid
+            if new_secid in self:
+                new_secid = self[new_secid]
+            self[line.old_secid] = new_secid
