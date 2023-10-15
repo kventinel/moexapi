@@ -15,9 +15,9 @@ class Candle:
     high: float
     open: float
     close: float
-    mid_price: float
-    numtrades: int
-    volume: int
+    mid_price: T.Optional[float]
+    numtrades: T.Optional[int]
+    volume: T.Optional[int]
     value: float
 
     @classmethod
@@ -73,15 +73,16 @@ def _parse_candles(
         columns = history["columns"]
         data = history["data"]
         for line in data:
-            date = datetime.date.fromisoformat(line[columns.index("TRADEDATE")])
+            line_dict = {key: value for key, value in zip(columns, line)}
+            date = datetime.date.fromisoformat(line_dict["TRADEDATE"])
             start_date = date + datetime.timedelta(days=1)
             if end_date and date > end_date:
                 break
-            low = line[columns.index("LOW")]
-            high = line[columns.index("HIGH")]
-            open = line[columns.index("OPEN")]
-            close = line[columns.index("CLOSE")]
-            if low is None and high is None and open is None and close is None:
+            low = line_dict["LOW"]
+            high = line_dict["HIGH"]
+            open = line_dict["OPEN"]
+            close = line_dict["CLOSE"]
+            if low is None or high is None or open is None or close is None:
                 continue
             result.append(
                 Candle(
@@ -90,10 +91,10 @@ def _parse_candles(
                     high=high,
                     open=open,
                     close=close,
-                    mid_price=line[columns.index("WAPRICE")],
-                    numtrades=line[columns.index("NUMTRADES")],
-                    volume=line[columns.index("VOLUME")],
-                    value=line[columns.index("VALUE")],
+                    mid_price=line_dict.get("WAPRICE"),
+                    numtrades=line_dict.get("NUMTRADES"),
+                    volume=line_dict.get("VOLUME"),
+                    value=line_dict["VALUE"],
                 )
             )
         if len(data) == 0 or (end_date and start_date and start_date > end_date):

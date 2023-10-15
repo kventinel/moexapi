@@ -65,15 +65,18 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
     assert len(sec_data) == len(market_data)
     result = []
     for sec_line, market_line in zip(sec_data, market_data):
-        secid = sec_line[sec_columns.index("SECID")]
-        price = sec_line[sec_columns.index("PREVPRICE")]
-        if price is None:
-            price = market_line[market_columns.index("LAST")]
+        sec_dict = {key: value for key, value in zip(sec_columns, sec_line)}
+        market_dict = {key: value for key, value in zip(market_columns, market_line)}
+        secid = sec_dict["SECID"]
+        if market == markets.Markets.INDEX or market == markets.Markets.INDEX:
+            price = market_dict["CURRENTVALUE"]
+        else:
+            price = market_dict["LAST"]
         result.append(OneBoardTicker(
             secid=secid,
-            board=sec_line[sec_columns.index("BOARDID")],
+            board=sec_dict["BOARDID"],
             market=market,
-            shortname=sec_line[sec_columns.index("SHORTNAME")],
+            shortname=sec_dict["SHORTNAME"],
             price=price,
         ))
     return result
