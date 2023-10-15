@@ -1,9 +1,11 @@
 import typing as T
 
+import copy
 import dataclasses
 import datetime
 
 from . import boards
+from . import changeover
 from . import tickers
 from . import utils
 
@@ -18,7 +20,7 @@ class Candle:
     mid_price: T.Optional[float]
     numtrades: T.Optional[int]
     volume: T.Optional[int]
-    value: float
+    value: T.Optional[float]
 
     @classmethod
     def merge(cls, first: 'Candle', second: 'Candle'):
@@ -44,19 +46,54 @@ class Candles(list[Candle]):
         end_date: T.Optional[datetime.date] = None,
         only_main_board: bool = True,
     ):
-        if not only_main_board:
-            candles = []
-            for board in ticker.boards:
-                candles.append(_parse_candles(ticker, board, start_date=start_date, end_date=end_date))
-            for idx in range(1, len(candles)):
-                candles[0] = _merge_candles(candles[0], candles[idx])
-            self.extend(candles[0])
+        super().__init__()
+        ticker = copy.deepcopy(ticker)
+        changeovers = changeover.Changeovers(ticker.market)
+        candles = []
+        candles.append(
+            _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+        )
+        for line in changeovers:
+            if line.new_secid == ticker.secid:
+                candles.append(
+                    _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+                )
+                ticker.secid = line.old_secid
+        self.extend(_merge_candles_list(candles))
+
+
+def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
+    i = 0
+    j = 0
+    result: list[Candle] = []
+    while i < len(first) and j < len(second):
+        if first[i].date == second[j].date:
+            result.append(Candle.merge(first[i], second[j]))
+            i += 1
+            j += 1
+        elif first[i].date < second[j].date:
+            result.append(first[i])
+            i += 1
         else:
-            board = boards.get_main_board(ticker.boards)
-            self.extend(_parse_candles(ticker, board, start_date=start_date, end_date=end_date))
+            result.append(second[j])
+            j += 1
+    while i < len(first):
+        result.append(first[i])
+        i += 1
+    while j < len(second):
+        result.append(second[j])
+        j += 1
+    return result
 
 
-def _parse_candles(
+def _merge_candles_list(candles: list[list[Candle]]) -> list[Candle]:
+    result = candles[0]
+    for idx in range(1, len(candles)):
+        result = _merge_candles(result, candles[idx])
+    return result
+
+
+def _parse_candles_one_board(
     ticker: tickers.Ticker,
     board: str,
     start_date: T.Optional[datetime.date] = None,
@@ -102,25 +139,20 @@ def _parse_candles(
     return result
 
 
-def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
-    i = 0
-    j = 0
-    result: list[Candle] = []
-    while i < len(first) and j < len(second):
-        if first[i].date == second[j].date:
-            result.append(Candle.merge(first[i], second[j]))
-            i += 1
-            j += 1
-        elif first[i].date < second[j].date:
-            result.append(first[i])
-            i += 1
-        else:
-            result.append(second[j])
-            j += 1
-    while i < len(first):
-        result.append(first[i])
-        i += 1
-    while j < len(second):
-        result.append(second[j])
-        j += 1
-    return result
+def _parse_candles(
+    ticker: tickers.Ticker,
+    start_date: T.Optional[datetime.date] = None,
+    end_date: T.Optional[datetime.date] = None,
+    only_main_board: bool = True
+):
+    if only_main_board:
+        return _parse_candles_one_board(
+            ticker,
+            boards.get_main_board(ticker.boards),
+            start_date=start_date,
+            end_date=end_date,
+        )
+    candles = []
+    for board in ticker.boards:
+        candles.append(_parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date))
+    return _merge_candles_list(candles)

@@ -37,8 +37,8 @@ class Ticker:
                 ticker
                 for ticker in _parse_tickers(market=markets.Markets.CURRENCY, board=board) if ticker.shortname == secid
             ]
-        if len(tickers) == 0 and secid == 'RSTI':
-            logger.info("change RSTI to FEES")
+        if len(tickers) == 0 and secid in ('RSTI', 'RSTIP'):
+            logger.info(f"change {secid} to FEES")
             tickers = _parse_tickers(market=market, board=board, secid="FEES")
         assert len(tickers) > 0, f"Can't find ticker {secid}"
         if any(ticker.secid != tickers[0].secid for ticker in tickers):
@@ -61,6 +61,7 @@ class Ticker:
 
 class Tickers(list[Ticker]):
     def __init__(self, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
+        super().__init__()
         tickers = _parse_tickers(market=market, board=board)
         market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
         secids = set(ticker.secid for ticker in tickers)
@@ -89,12 +90,14 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             price = market_dict["LAST"]
             if price is None:
                 price = sec_dict["PREVWAPRICE"]
+        if price is not None and "LOTVALUE" in sec_dict:
+            price *= sec_dict["LOTVALUE"] / 100
         result.append(OneBoardTicker(
             secid=secid,
             board=sec_dict["BOARDID"],
             market=market,
             shortname=sec_dict["SHORTNAME"],
-            price=price,
+            price=price * sec_dict.get("LOTVALUE", 1.0) if price is not None else None,
         ))
     return result
 
