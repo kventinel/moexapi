@@ -1,0 +1,24 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymoex"
+version = "1.0.0"
+description = "Python API for MOEX ISS"
+readme = "README.md"
+authors = [{ name = "Aliaksei Rak", email = "kventinel@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["moex"]
+dependencies = [
+    "requests",
+]
+requires-python = ">=3.6"
+
+[project.urls]
+Homepage = "https://github.com/kventinel/pymoex"
