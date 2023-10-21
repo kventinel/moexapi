@@ -11,6 +11,20 @@ from . import utils
 logger = utils.initialize_logging(__file__)
 
 
+SECID = "SECID"
+ISIN = "ISIN"
+SHORTNAME = "SHORTNAME"
+BOARDID = "BOARDID"
+LAST = "LAST"
+PREVPRICE = "PREVPRICE"
+SECSUBTYPE = "SECSUBTYPE"
+LISTLEVEL = "LISTLEVEL"
+LOTVALUE = "LOTVALUE"
+CURRENTVALUE = "CURRENTVALUE"
+FACEVALUEONSETTLEDATE = "FACEVALUEONSETTLEDATE"
+ACCRUEDINT = "ACCRUEDINT"
+
+
 @dataclasses.dataclass
 class OneBoardTicker:
     secid: str
@@ -20,6 +34,7 @@ class OneBoardTicker:
     raw_price: T.Optional[float]
     price: T.Optional[float]
     accumulated_coupon: float
+    listlevel: T.Optional[int]
 
 
 @dataclasses.dataclass
@@ -36,9 +51,9 @@ class TickerInfo:
         columns = description["columns"]
         data = description["data"]
         data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
-        self.isin = data_dict.get("ISIN")
-        self.subtype = data_dict.get("SECSUBTYPE")
-        self.listlevel = data_dict.get("LISTLEVEL")
+        self.isin = data_dict.get(ISIN)
+        self.subtype = data_dict.get(SECSUBTYPE)
+        self.listlevel = int(data_dict[LISTLEVEL]) if LISTLEVEL in data_dict else None
 
 
 @dataclasses.dataclass
@@ -80,6 +95,8 @@ class Ticker(TickerInfo):
         self.raw_price = main_tickers[0].raw_price
         self.price = main_tickers[0].price
         self.accumulated_coupon = main_tickers[0].accumulated_coupon
+        if self.listlevel is None:
+            self.listlevel = main_tickers[0].listlevel
 
 
 def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTicker]:
@@ -94,19 +111,19 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
     for sec_line, market_line in zip(sec_data, market_data):
         sec_dict = {key: value for key, value in zip(sec_columns, sec_line)}
         market_dict = {key: value for key, value in zip(market_columns, market_line)}
-        secid = sec_dict["SECID"]
+        secid = sec_dict[SECID]
         if market == markets.Markets.INDEX or market == markets.Markets.INDEX:
-            raw_price = market_dict["CURRENTVALUE"]
+            raw_price = market_dict[CURRENTVALUE]
         else:
-            raw_price = market_dict["LAST"]
+            raw_price = market_dict[LAST]
             if raw_price is None:
-                raw_price = sec_dict["PREVPRICE"]
+                raw_price = sec_dict[PREVPRICE]
         accumulated_coupon = 0
-        if "ACCRUEDINT" in sec_dict:
-            accumulated_coupon = sec_dict["ACCRUEDINT"]
-        lotvalue = sec_dict.get("FACEVALUEONSETTLEDATE")
+        if ACCRUEDINT in sec_dict:
+            accumulated_coupon = sec_dict[ACCRUEDINT]
+        lotvalue = sec_dict.get(FACEVALUEONSETTLEDATE)
         if lotvalue is None:
-            lotvalue = sec_dict.get("LOTVALUE")
+            lotvalue = sec_dict.get(LOTVALUE)
         price = raw_price
         if price is not None:
             if lotvalue is not None:
@@ -114,12 +131,13 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             price += accumulated_coupon
         result.append(OneBoardTicker(
             secid=secid,
-            board=sec_dict["BOARDID"],
+            board=sec_dict[BOARDID],
             market=market,
-            shortname=sec_dict["SHORTNAME"],
+            shortname=sec_dict[SHORTNAME],
             raw_price=raw_price,
             price=price,
             accumulated_coupon=accumulated_coupon,
+            listlevel=sec_dict[LISTLEVEL]
         ))
     return result
 

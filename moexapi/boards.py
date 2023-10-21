@@ -15,7 +15,7 @@ def get_main_board(boards: list[str]) -> str:
         return boards[0]
     NAMES = (
         ("TQCB", "TQBR", "TQTF", "CETS", "TQIF"),
-        ("TQOB", "TQIR", "TQRD", "TQPI"),
+        ("TQOB", "TQIR", "TQRD", "TQPI", "CNGD", "FIXS"),
     )
     for tier in NAMES:
         board = _check_tier(boards, tier)
