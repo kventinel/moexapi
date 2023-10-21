@@ -17,14 +17,14 @@ class OneBoardTicker:
     market: markets.Markets
     board: str
     shortname: str
-    price: float
+    price: T.Optional[float]
+    accumulated_coupon: float
 
 
 @dataclasses.dataclass
 class TickerInfo:
     secid: str
     isin: T.Optional[str]
-    coupon: float
     subtype: T.Optional[str]
     listlevel: T.Optional[int]
 
@@ -36,7 +36,6 @@ class TickerInfo:
         data = description["data"]
         data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
         self.isin = data_dict.get("ISIN")
-        self.coupon = float(data_dict.get("COUPONVALUE", 0))
         self.subtype = data_dict.get("SECSUBTYPE")
         self.listlevel = data_dict.get("LISTLEVEL")
 
@@ -46,7 +45,8 @@ class Ticker(TickerInfo):
     boards: list[str]
     market: markets.Markets
     shortname: str
-    price: float
+    price: T.Optional[float]
+    accumulated_coupon: float
 
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
         if len(secid) == 3:
@@ -75,7 +75,8 @@ class Ticker(TickerInfo):
         self.boards = list(set(ticker.board for ticker in tickers))
         self.market = tickers[0].market
         self.shortname = tickers[0].shortname
-        self.price = main_tickers[0].price + self.coupon
+        self.price = main_tickers[0].price
+        self.accumulated_coupon = main_tickers[0].accumulated_coupon
 
 
 def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTicker]:
@@ -97,14 +98,20 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             price = market_dict["LAST"]
             if price is None:
                 price = sec_dict["PREVPRICE"]
-        if price is not None and "LOTVALUE" in sec_dict:
-            price *= sec_dict["LOTVALUE"] / 100
+        accumulated_coupon = 0
+        if "ACCRUEDINT" in sec_dict:
+            accumulated_coupon = sec_dict["ACCRUEDINT"]
+        if price is not None:
+            if "LOTVALUE" in sec_dict:
+                price *= sec_dict["LOTVALUE"] / 100
+            price += accumulated_coupon
         result.append(OneBoardTicker(
             secid=secid,
             board=sec_dict["BOARDID"],
             market=market,
             shortname=sec_dict["SHORTNAME"],
             price=price,
+            accumulated_coupon=accumulated_coupon,
         ))
     return result
 
