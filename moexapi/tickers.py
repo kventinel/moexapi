@@ -33,13 +33,10 @@ class TickerInfo:
         description = response["description"]
         columns = description["columns"]
         data = description["data"]
-        for line in data:
-            if line[columns.index("name")] == "SECSUBTYPE":
-                self.subtype = line[columns.index("value")]
-            if line[columns.index("name")] == "LISTLEVEL":
-                self.listlevel = line[columns.index("value")]
-            if line[columns.index("name")] == "ISIN":
-                self.isin = line[columns.index("value")]
+        data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
+        self.isin = data_dict["ISIN"]
+        self.subtype = data_dict.get("SECSUBTYPE")
+        self.listlevel = data_dict["LISTLEVEL"]
 
 
 @dataclasses.dataclass
