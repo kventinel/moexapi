@@ -21,13 +21,33 @@ class OneBoardTicker:
 
 
 @dataclasses.dataclass
-class Ticker:
+class TickerInfo:
     secid: str
+    isin: str
+    subtype: T.Optional[str]
+    listlevel: int
+
+    def __init__(self, secid: str):
+        self.secid = secid
+        response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
+        description = response["description"]
+        columns = description["columns"]
+        data = description["data"]
+        for line in data:
+            if line[columns.index("name")] == "SECSUBTYPE":
+                self.subtype = line[columns.index("value")]
+            if line[columns.index("name")] == "LISTLEVEL":
+                self.listlevel = line[columns.index("value")]
+            if line[columns.index("name")] == "ISIN":
+                self.isin = line[columns.index("value")]
+
+
+@dataclasses.dataclass
+class Ticker(TickerInfo):
     boards: list[str]
     market: markets.Markets
     shortname: str
     price: float
-    subtype: T.Optional[str]
 
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
         if len(secid) == 3:
@@ -52,24 +72,11 @@ class Ticker:
         main_tickers = [ticker for ticker in tickers if ticker.board == boards_lib.get_main_board(ticker_boards)]
         if len(main_tickers) != 1:
             raise RuntimeError(f"Can't find main ticker {main_tickers}")
-        self.secid = tickers[0].secid
+        super().__init__(tickers[0].secid)
         self.boards = list(set(ticker.board for ticker in tickers))
         self.market = tickers[0].market
         self.shortname = tickers[0].shortname
         self.price = main_tickers[0].price
-        self.subtype = _parse_subtype(secid)
-
-
-class Tickers(list[Ticker]):
-    def __init__(self, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
-        super().__init__()
-        tickers = _parse_tickers(market=market, board=board)
-        market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
-        secids = set(ticker.secid for ticker in tickers)
-        if len(secids) != len(market_secids):
-            raise RuntimeError(f"One secid in different markets")
-        for market, secid in market_secids:
-            self.append(Ticker(secid=secid, market=market))
 
 
 def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTicker]:
@@ -120,11 +127,13 @@ def _parse_tickers(
 
 
 def _parse_subtype(secid: str) -> T.Optional[str]:
-    response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
-    description = response["description"]
-    columns = description["columns"]
-    data = description["data"]
-    for line in data:
-        if line[columns.index("name")] == "SECSUBTYPE":
-            return line[columns.index("value")]
-    return None
+
+
+
+def get_tickers(market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None) -> list[Ticker]:
+    tickers = _parse_tickers(market=market, board=board)
+    market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
+    secids = set(ticker.secid for ticker in tickers)
+    if len(secids) != len(market_secids):
+        raise RuntimeError(f"One secid in different markets")
+    return [Ticker(secid=secid, market=market) for market, secid in market_secids]

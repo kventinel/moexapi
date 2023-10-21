@@ -38,30 +38,6 @@ class Candle:
         )
 
 
-class Candles(list[Candle]):
-    def __init__(
-        self,
-        ticker: tickers.Ticker,
-        start_date: T.Optional[datetime.date] = None,
-        end_date: T.Optional[datetime.date] = None,
-        only_main_board: bool = True,
-    ):
-        super().__init__()
-        ticker = copy.deepcopy(ticker)
-        changeovers = changeover.Changeovers(ticker.market)
-        candles = []
-        candles.append(
-            _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
-        )
-        for line in changeovers:
-            if line.new_secid == ticker.secid:
-                candles.append(
-                    _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
-                )
-                ticker.secid = line.old_secid
-        self.extend(_merge_candles_list(candles))
-
-
 def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
     i = 0
     j = 0
@@ -155,4 +131,25 @@ def _parse_candles(
     candles = []
     for board in ticker.boards:
         candles.append(_parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date))
+    return _merge_candles_list(candles)
+
+
+def get_candles(
+    ticker: tickers.Ticker,
+    start_date: T.Optional[datetime.date] = None,
+    end_date: T.Optional[datetime.date] = None,
+    only_main_board: bool = True,
+):
+    ticker = copy.deepcopy(ticker)
+    changeovers = changeover.Changeovers(ticker.market)
+    candles = []
+    candles.append(
+        _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+    )
+    for line in changeovers:
+        if line.new_secid == ticker.secid:
+            candles.append(
+                _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+            )
+            ticker.secid = line.old_secid
     return _merge_candles_list(candles)
