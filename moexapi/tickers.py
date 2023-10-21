@@ -17,6 +17,7 @@ class OneBoardTicker:
     market: markets.Markets
     board: str
     shortname: str
+    raw_price: T.Optional[float]
     price: T.Optional[float]
     accumulated_coupon: float
 
@@ -45,6 +46,7 @@ class Ticker(TickerInfo):
     boards: list[str]
     market: markets.Markets
     shortname: str
+    raw_price: T.Optional[float]
     price: T.Optional[float]
     accumulated_coupon: float
 
@@ -75,6 +77,7 @@ class Ticker(TickerInfo):
         self.boards = list(set(ticker.board for ticker in tickers))
         self.market = tickers[0].market
         self.shortname = tickers[0].shortname
+        self.raw_price = main_tickers[0].raw_price
         self.price = main_tickers[0].price
         self.accumulated_coupon = main_tickers[0].accumulated_coupon
 
@@ -93,23 +96,28 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
         market_dict = {key: value for key, value in zip(market_columns, market_line)}
         secid = sec_dict["SECID"]
         if market == markets.Markets.INDEX or market == markets.Markets.INDEX:
-            price = market_dict["CURRENTVALUE"]
+            raw_price = market_dict["CURRENTVALUE"]
         else:
-            price = market_dict["LAST"]
-            if price is None:
-                price = sec_dict["PREVPRICE"]
+            raw_price = market_dict["LAST"]
+            if raw_price is None:
+                raw_price = sec_dict["PREVPRICE"]
         accumulated_coupon = 0
         if "ACCRUEDINT" in sec_dict:
             accumulated_coupon = sec_dict["ACCRUEDINT"]
+        lotvalue = sec_dict.get("FACEVALUEONSETTLEDATE")
+        if lotvalue is None:
+            lotvalue = sec_dict.get("LOTVALUE")
+        price = raw_price
         if price is not None:
-            if "LOTVALUE" in sec_dict:
-                price *= sec_dict["LOTVALUE"] / 100
+            if lotvalue is not None:
+                price *= lotvalue / 100
             price += accumulated_coupon
         result.append(OneBoardTicker(
             secid=secid,
             board=sec_dict["BOARDID"],
             market=market,
             shortname=sec_dict["SHORTNAME"],
+            raw_price=raw_price,
             price=price,
             accumulated_coupon=accumulated_coupon,
         ))
