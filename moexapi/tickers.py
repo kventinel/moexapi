@@ -24,6 +24,7 @@ class OneBoardTicker:
 class TickerInfo:
     secid: str
     isin: T.Optional[str]
+    coupon: float
     subtype: T.Optional[str]
     listlevel: T.Optional[int]
 
@@ -35,6 +36,7 @@ class TickerInfo:
         data = description["data"]
         data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
         self.isin = data_dict.get("ISIN")
+        self.coupon = float(data_dict.get("COUPONVALUE", 0))
         self.subtype = data_dict.get("SECSUBTYPE")
         self.listlevel = data_dict.get("LISTLEVEL")
 
@@ -50,10 +52,10 @@ class Ticker(TickerInfo):
         if len(secid) == 3:
             secid = f"{secid}RUB_TOM"
         tickers = _parse_tickers(market=market, board=board, secid=secid)
-        if len(tickers) == 0 and market is None:
+        if len(tickers) == 0:
             tickers = [
                 ticker
-                for ticker in _parse_tickers(market=markets.Markets.CURRENCY, board=board) if ticker.shortname == secid
+                for ticker in _parse_tickers(market=market, board=board) if ticker.shortname == secid
             ]
         if len(tickers) == 0 and secid in changeover.ChangesDict():
             logger.info(f"change {secid} to FEES")
@@ -73,7 +75,7 @@ class Ticker(TickerInfo):
         self.boards = list(set(ticker.board for ticker in tickers))
         self.market = tickers[0].market
         self.shortname = tickers[0].shortname
-        self.price = main_tickers[0].price
+        self.price = main_tickers[0].price + self.coupon
 
 
 def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTicker]:
