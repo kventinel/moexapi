@@ -126,10 +126,6 @@ def _parse_tickers(
     return tickers
 
 
-def _parse_subtype(secid: str) -> T.Optional[str]:
-
-
-
 def get_tickers(market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None) -> list[Ticker]:
     tickers = _parse_tickers(market=market, board=board)
     market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
