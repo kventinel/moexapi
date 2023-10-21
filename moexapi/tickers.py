@@ -23,9 +23,9 @@ class OneBoardTicker:
 @dataclasses.dataclass
 class TickerInfo:
     secid: str
-    isin: str
+    isin: T.Optional[str]
     subtype: T.Optional[str]
-    listlevel: int
+    listlevel: T.Optional[int]
 
     def __init__(self, secid: str):
         self.secid = secid
@@ -34,9 +34,9 @@ class TickerInfo:
         columns = description["columns"]
         data = description["data"]
         data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
-        self.isin = data_dict["ISIN"]
+        self.isin = data_dict.get("ISIN")
         self.subtype = data_dict.get("SECSUBTYPE")
-        self.listlevel = data_dict["LISTLEVEL"]
+        self.listlevel = data_dict.get("LISTLEVEL")
 
 
 @dataclasses.dataclass
