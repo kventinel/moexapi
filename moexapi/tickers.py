@@ -94,7 +94,7 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
         else:
             price = market_dict["LAST"]
             if price is None:
-                price = sec_dict["PREVWAPRICE"]
+                price = sec_dict["PREVPRICE"]
         if price is not None and "LOTVALUE" in sec_dict:
             price *= sec_dict["LOTVALUE"] / 100
         result.append(OneBoardTicker(
