@@ -3,7 +3,7 @@ requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pymoex"
+name = "moexapi"
 version = "1.0.0"
 description = "Python API for MOEX ISS"
 readme = "README.md"
@@ -21,4 +21,4 @@ dependencies = [
 requires-python = ">=3.6"
 
 [project.urls]
-Homepage = "https://github.com/kventinel/pymoex"
+Homepage = "https://github.com/kventinel/moexapi"
