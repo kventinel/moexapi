@@ -20,7 +20,7 @@ def get_splits() -> list[Split]:
     for line in data:
         result.append(
             Split(
-                date=line[columns.index("tradedate")],
+                date=datetime.date.fromisoformat(line[columns.index("tradedate")]),
                 secid=line[columns.index("secid")],
                 mult=line[columns.index("after")] / line[columns.index("before")],
             )
