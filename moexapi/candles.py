@@ -96,6 +96,9 @@ def _parse_candles_one_board(
             close = line_dict["CLOSE"]
             if low is None or high is None or open is None or close is None:
                 continue
+            volume = line_dict.get("VOLUME")
+            if volume is None:
+                volume = line_dict.get("VOLRUR")
             result.append(
                 Candle(
                     date=date,
@@ -105,7 +108,7 @@ def _parse_candles_one_board(
                     close=close,
                     mid_price=line_dict.get("WAPRICE"),
                     numtrades=line_dict.get("NUMTRADES"),
-                    volume=line_dict.get("VOLUME"),
+                    volume=volume,
                     value=line_dict.get("VALUE"),
                 )
             )
