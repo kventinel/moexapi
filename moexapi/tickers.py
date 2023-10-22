@@ -66,17 +66,22 @@ class Ticker(TickerInfo):
     accumulated_coupon: float
 
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None, board: T.Optional[str] = None):
-        if len(secid) == 3:
-            secid = f"{secid}RUB_TOM"
         tickers = _parse_tickers(market=market, board=board, secid=secid)
-        if len(tickers) == 0:
-            tickers = [
-                ticker
-                for ticker in _parse_tickers(market=market, board=board) if ticker.shortname == secid
-            ]
         if len(tickers) == 0 and secid in changeover.ChangesDict():
-            logger.info(f"change {secid} to FEES")
-            tickers = _parse_tickers(market=market, board=board, secid="FEES")
+            cur_secid = changeover.ChangesDict()[secid]
+            logger.info("change %s to %s", secid, cur_secid)
+            tickers = _parse_tickers(market=market, board=board, secid=cur_secid)
+        if len(tickers) == 0:
+            tickers = [ticker for ticker in _parse_tickers(market=market, board=board) if ticker.shortname == secid]
+        if len(tickers) == 0 and len(secid) == 3 and (market is None or market == markets.Markets.CURRENCY):
+            cur_secid = f"{secid}RUB_TOM"
+            tickers = _parse_tickers(market=markets.Markets.CURRENCY, board=board, secid=cur_secid)
+            if len(tickers) == 0:
+                tickers = [
+                    ticker
+                    for ticker in _parse_tickers(market=markets.Markets.CURRENCY, board=board)
+                    if ticker.shortname == cur_secid
+                ]
         assert len(tickers) > 0, f"Can't find ticker {secid}"
         if any(ticker.secid != tickers[0].secid for ticker in tickers):
             raise RuntimeError(f"Different secids for ticker {secid}")
