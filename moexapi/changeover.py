@@ -1,7 +1,6 @@
 import dataclasses
 import datetime
 
-from . import markets
 from . import utils
 
 
@@ -12,9 +11,11 @@ class Changeover:
     new_secid: str
 
 
-def get_changeovers(market: markets.Markets) -> list[Changeover]:
+def get_changeovers() -> list[Changeover]:
     result = []
-    response = utils.json_api_call(f"https://iss.moex.com/iss/history{market.path}/securities/changeover.json")
+    response = utils.json_api_call(
+        "https://iss.moex.com/iss/history/engines/stock/markets/bonds/securities/changeover.json"
+    )
     changeover = response["changeover"]
     columns = changeover["columns"]
     data = changeover["data"]
@@ -29,8 +30,8 @@ def get_changeovers(market: markets.Markets) -> list[Changeover]:
     return result
 
 
-def get_prev_names(secid: str, market: markets.Markets) -> list[str]:
-    changeovers = sorted(get_changeovers(market), key=lambda x: x.date, reverse=True)
+def get_prev_names(secid: str) -> list[str]:
+    changeovers = sorted(get_changeovers(), key=lambda x: x.date, reverse=True)
     names = [secid]
     for line in changeovers:
         if line.new_secid == names[-1]:
@@ -39,7 +40,7 @@ def get_prev_names(secid: str, market: markets.Markets) -> list[str]:
             
 
 def get_ticker_current_name(secid: str) -> str:
-    changeovers = sorted(get_changeovers(markets.Markets.SHARES), key=lambda x: x.date)
+    changeovers = sorted(get_changeovers(), key=lambda x: x.date)
     for line in changeovers:
         if secid == line.old_secid:
             secid = line.new_secid

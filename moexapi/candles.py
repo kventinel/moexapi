@@ -146,7 +146,7 @@ def get_candles(
     end_date: T.Optional[datetime.date] = None,
 ):
     ticker = copy.deepcopy(ticker)
-    prev_names = changeover.get_prev_names(ticker.secid, ticker.market)
+    prev_names = changeover.get_prev_names(ticker.secid)
     ticker_splits = [split for split in splits.get_splits() if split.secid in prev_names]
     candles = []
     for name in prev_names:
