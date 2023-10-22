@@ -49,7 +49,7 @@ class Markets(enum.Enum):
     def candle_boards(self) -> T.Optional[T.Sequence[str]]:
         BOARDS = {
             Markets.SHARES: ("TQBR", "EQBR"),
-            Markets.BONDS: ("TQCB",),
+            Markets.BONDS: ("TQCB", "TQOB"),
             Markets.ETF: ("TQTF",),
             Markets.INDEX: None,
             Markets.CURRENCY: ("CETS",),
