@@ -14,7 +14,7 @@ class Changeover:
 def get_changeovers() -> list[Changeover]:
     result = []
     response = utils.json_api_call(
-        "https://iss.moex.com/iss/history/engines/stock/markets/bonds/securities/changeover.json"
+        "https://iss.moex.com/iss/history/engines/stock/markets/shares/securities/changeover.json"
     )
     changeover = response["changeover"]
     columns = changeover["columns"]
