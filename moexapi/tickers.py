@@ -95,9 +95,11 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
         market_dict = {key: value for key, value in zip(market_columns, market_line)}
         secid = sec_dict[SECID]
         board = sec_dict[BOARDID]
-        if market.board is not None and board != market.board:
+        if market.board is not None and board not in market.board:
             boards[secid].append(board)
             continue
+        else:
+            assert secid not in result, "Second accurance of ticker {secid}"
         if market == markets.Markets.INDEX or market == markets.Markets.INDEX:
             raw_price = market_dict[CURRENTVALUE]
         else:
@@ -128,6 +130,7 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
     for secid, value in boards.items():
         if secid in result:
             result[secid].boards.extend(value)
+    logger.debug("Bad boards for tickers: %s", str(boards.keys() - result.keys()))
     return list(result.values())
 
 

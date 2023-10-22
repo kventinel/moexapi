@@ -35,13 +35,13 @@ class Markets(enum.Enum):
         return MARKETS[self]
     
     @property
-    def board(self) -> T.Optional[str]:
+    def board(self) -> T.Optional[T.Sequence[str]]:
         BOARDS = {
-            Markets.SHARES: "TQBR",
-            Markets.BONDS: "TQCB",
-            Markets.ETF: "TQTF",
+            Markets.SHARES: ("TQBR",),
+            Markets.BONDS: ("TQCB", "TQOB"),
+            Markets.ETF: ("TQTF",),
             Markets.INDEX: None,
-            Markets.CURRENCY: "CETS",
+            Markets.CURRENCY: ("CETS",),
         }
         return BOARDS[self]
     
