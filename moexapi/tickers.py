@@ -137,7 +137,7 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[OneBoardTi
             raw_price=raw_price,
             price=price,
             accumulated_coupon=accumulated_coupon,
-            listlevel=sec_dict[LISTLEVEL]
+            listlevel=sec_dict.get(LISTLEVEL)
         ))
     return result
 
