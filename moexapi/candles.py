@@ -96,6 +96,8 @@ def _parse_candles_one_board(
             close = line_dict["CLOSE"]
             if low is None or high is None or open is None or close is None:
                 continue
+            if low == 0.0 or high == 0.0 or open == 0.0 or close == 0.0:
+                continue
             volume = line_dict.get("VOLUME")
             if volume is None:
                 volume = line_dict.get("VOLRUR")
