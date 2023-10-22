@@ -2,7 +2,7 @@ import typing as T
 
 import collections
 import dataclasses
-    
+
 from . import changeover
 from . import markets
 from . import utils
@@ -95,7 +95,7 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
         market_dict = {key: value for key, value in zip(market_columns, market_line)}
         secid = sec_dict[SECID]
         board = sec_dict[BOARDID]
-        if board != market.board:
+        if market.board is not None and board != market.board:
             boards[secid].append(board)
             continue
         if market == markets.Markets.INDEX or market == markets.Markets.INDEX:

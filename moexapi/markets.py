@@ -1,3 +1,5 @@
+import typing as T
+
 import enum
 
 class Markets(enum.Enum):
@@ -11,7 +13,7 @@ class Markets(enum.Enum):
         return str(self.value)
 
     @property
-    def engine(self):
+    def engine(self) -> str:
         ENGINE = {
             Markets.SHARES: "stock",
             Markets.BONDS: "stock",
@@ -22,7 +24,7 @@ class Markets(enum.Enum):
         return ENGINE[self]
 
     @property
-    def market(self):
+    def market(self) -> str:
         MARKETS = {
             Markets.SHARES: "shares",
             Markets.BONDS: "bonds",
@@ -33,7 +35,7 @@ class Markets(enum.Enum):
         return MARKETS[self]
     
     @property
-    def board(self):
+    def board(self) -> T.Optional[str]:
         BOARDS = {
             Markets.SHARES: "TQBR",
             Markets.BONDS: "TQCB",
@@ -44,7 +46,7 @@ class Markets(enum.Enum):
         return BOARDS[self]
     
     @property
-    def candle_boards(self):
+    def candle_boards(self) -> T.Optional[T.Sequence[str]]:
         BOARDS = {
             Markets.SHARES: ("TQBR", "EQBR"),
             Markets.BONDS: ("TQCB",),
