@@ -4,6 +4,7 @@ import collections
 import dataclasses
 
 from . import changeover
+from . import exchange
 from . import markets
 from . import utils
 
@@ -22,6 +23,7 @@ LISTLEVEL = "LISTLEVEL"
 LOTVALUE = "LOTVALUE"
 CURRENTVALUE = "CURRENTVALUE"
 FACEVALUEONSETTLEDATE = "FACEVALUEONSETTLEDATE"
+FACEUNIT = "FACEUNIT"
 ACCRUEDINT = "ACCRUEDINT"
 
 
@@ -112,6 +114,9 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
         lotvalue = sec_dict.get(FACEVALUEONSETTLEDATE)
         if lotvalue is None:
             lotvalue = sec_dict.get(LOTVALUE)
+        unit = sec_dict.get(FACEUNIT, "RUB")
+        if lotvalue is not None and unit not in ["RUB", "SUR"]:
+            lotvalue *= exchange.get_rate(unit)
         price = raw_price
         if price is not None:
             if lotvalue is not None:
