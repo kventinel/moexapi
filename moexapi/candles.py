@@ -4,7 +4,6 @@ import copy
 import dataclasses
 import datetime
 
-from . import boards
 from . import changeover
 from . import tickers
 from . import utils
@@ -119,17 +118,10 @@ def _parse_candles(
     ticker: tickers.Ticker,
     start_date: T.Optional[datetime.date] = None,
     end_date: T.Optional[datetime.date] = None,
-    only_main_board: bool = True
 ):
-    if only_main_board:
-        return _parse_candles_one_board(
-            ticker,
-            boards.get_main_board(ticker.boards),
-            start_date=start_date,
-            end_date=end_date,
-        )
     candles = []
-    for board in ticker.boards:
+    boards = ticker.market.candle_boards if ticker.market.candle_boards else ticker.boards
+    for board in boards:
         candles.append(_parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date))
     return _merge_candles_list(candles)
 
@@ -138,18 +130,17 @@ def get_candles(
     ticker: tickers.Ticker,
     start_date: T.Optional[datetime.date] = None,
     end_date: T.Optional[datetime.date] = None,
-    only_main_board: bool = True,
 ):
     ticker = copy.deepcopy(ticker)
     changeovers = changeover.Changeovers(ticker.market)
     candles = []
     candles.append(
-        _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+        _parse_candles(ticker, start_date=start_date, end_date=end_date)
     )
     for line in changeovers:
         if line.new_secid == ticker.secid:
             candles.append(
-                _parse_candles(ticker, start_date=start_date, end_date=end_date, only_main_board=only_main_board)
+                _parse_candles(ticker, start_date=start_date, end_date=end_date)
             )
             ticker.secid = line.old_secid
     return _merge_candles_list(candles)
