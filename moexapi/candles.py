@@ -5,6 +5,7 @@ import dataclasses
 import datetime
 
 from . import changeover
+from . import splits
 from . import tickers
 from . import utils
 
@@ -35,6 +36,14 @@ class Candle:
             volume=first.volume + second.volume,
             value=first.value + second.value,
         )
+    
+    def mult(self, mult: float) -> None:
+        self.low *= mult
+        self.high *= mult
+        self.open *= mult
+        self.close *= mult
+        self.mid_price *= mult
+        self.value *= mult
 
 
 def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
@@ -137,15 +146,15 @@ def get_candles(
     end_date: T.Optional[datetime.date] = None,
 ):
     ticker = copy.deepcopy(ticker)
-    changeovers = changeover.Changeovers(ticker.market)
+    prev_names = changeover.get_prev_names(ticker.secid, ticker.market)
+    ticker_splits = [split for split in splits.get_splits() if split.secid in prev_names]
     candles = []
-    candles.append(
-        _parse_candles(ticker, start_date=start_date, end_date=end_date)
-    )
-    for line in changeovers:
-        if line.new_secid == ticker.secid:
-            candles.append(
-                _parse_candles(ticker, start_date=start_date, end_date=end_date)
-            )
-            ticker.secid = line.old_secid
-    return _merge_candles_list(candles)
+    for name in prev_names:
+        ticker.secid = name
+        candles.append(_parse_candles(ticker, start_date=start_date, end_date=end_date))
+    result = _merge_candles_list(candles)
+    for split in ticker_splits:
+        for candle in result:
+            if candle.date <= split.date:
+                candle.mult(1 / split.mult)
+    return result

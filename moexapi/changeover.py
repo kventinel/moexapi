@@ -12,35 +12,39 @@ class Changeover:
     new_secid: str
 
 
-class Changeovers(list[Changeover]):
-    def __init__(self, market: markets.Markets):
-        super().__init__()
-        if market == markets.Markets.SHARES:
-            response = utils.json_api_call(
-                "https://iss.moex.com/iss/history/engines/stock/markets/shares/securities/changeover.json"
+def get_changeovers(market: markets.Markets) -> list[Changeover]:
+    result = []
+    response = utils.json_api_call(f"https://iss.moex.com/iss/history{market.path}/securities/changeover.json")
+    changeover = response["changeover"]
+    columns = changeover["columns"]
+    data = changeover["data"]
+    for line in data:
+        result.append(
+            Changeover(
+                date=line[columns.index("action_date")],
+                old_secid=line[columns.index("old_secid")],
+                new_secid=line[columns.index("new_secid")],
             )
-            changeover = response["changeover"]
-            columns = changeover["columns"]
-            data = changeover["data"]
-            for line in data:
-                self.append(
-                    Changeover(
-                        date=line[columns.index("action_date")],
-                        old_secid=line[columns.index("old_secid")],
-                        new_secid=line[columns.index("new_secid")],
-                    )
-                )
+        )
+    return result
+
+
+def get_prev_names(secid: str, market: markets.Markets) -> list[str]:
+    changeovers = sorted(get_changeovers(market), key=lambda x: x.date, reverse=True)
+    names = [secid]
+    for line in changeovers:
+        if line.new_secid == names[-1]:
+            names.append(line.old_secid)
+    return names
             
 
-class ChangesDict(dict[str, str]):
-    def __init__(self):
-        super().__init__()
-        changeovers = Changeovers(markets.Markets.SHARES)
-        self["RSTI"] = "FEES"
-        self["RSTIP"] = "FEES"
-        self["SFTL"] = "SOFL"
-        for line in changeovers:
-            new_secid = line.new_secid
-            if new_secid in self:
-                new_secid = self[new_secid]
-            self[line.old_secid] = new_secid
+def get_ticker_current_name(secid: str) -> str:
+    changeovers = sorted(get_changeovers(markets.Markets.SHARES), key=lambda x: x.date)
+    for line in changeovers:
+        if secid == line.old_secid:
+            secid = line.new_secid
+    if secid in ["RSTI", "RSTIP"]:
+        return "FEES"
+    if secid == "SFTL":
+        return "SOFL"
+    return secid

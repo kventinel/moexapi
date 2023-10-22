@@ -61,8 +61,8 @@ class TickerInfo:
 class Ticker(TickerInfo, TickerBoardInfo):
     def __init__(self, secid: str, market: T.Optional[markets.Markets] = None):
         tickers = _parse_tickers(market=market, secid=secid)
-        if len(tickers) == 0 and secid in changeover.ChangesDict():
-            cur_secid = changeover.ChangesDict()[secid]
+        cur_secid = changeover.get_ticker_current_name(secid)
+        if len(tickers) == 0 and secid != cur_secid:
             logger.info("change %s to %s", secid, cur_secid)
             tickers = _parse_tickers(market=market, secid=cur_secid)
         if len(tickers) == 0:
