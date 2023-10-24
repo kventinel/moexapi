@@ -106,11 +106,14 @@ class Bond:
     def expiration_date(self) -> datetime.date:
         return max(item.date for item in self.amortization + self.coupons + self.offers)
 
-    def has_next_offer(self, date_from: T.Optional[datetime.date] = None) -> bool:
-        date_from = date_from or datetime.date.today()
-        return any(offer.date >= date_from for offer in self.offers)
-
-    def next_offer_date(self, date_from: T.Optional[datetime.date] = None) -> T.Optional[datetime.date]:
+    def next_offer(self, date_from: T.Optional[datetime.date] = None) -> T.Optional[Offer]:
         date_from = date_from or datetime.date.today()
         result = [offer for offer in self.offers if offer.date >= date_from]
-        return result[0].date if len(result) > 0 else None
+        return result[0] if len(result) > 0 else None
+    
+    def has_next_offer(self, date_from: T.Optional[datetime.date] = None) -> bool:
+        return self.next_offer(date_from=date_from) is not None
+
+    def next_offer_date(self, date_from: T.Optional[datetime.date] = None) -> T.Optional[datetime.date]:
+        offer = self.next_offer(date_from=date_from)
+        return offer.date if offer is not None else None
