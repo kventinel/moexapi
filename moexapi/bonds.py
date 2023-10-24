@@ -94,7 +94,7 @@ class Bond:
             for line in offers_data:
                 date = datetime.date.fromisoformat(line[offers_columns.index("offerdate")])
                 end_date = _max(end_date, date)
-                self.offers.append(Offer(date=date, value=line[amortization_columns.index("value")]))
+                self.offers.append(Offer(date=date, value=line[coupons_columns.index("value")]))
             if end_date == start_date:
                 break
             start_date = end_date
