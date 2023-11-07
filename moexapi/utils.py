@@ -1,5 +1,6 @@
 import typing as T
 
+import collections
 import json
 import logging
 import time
@@ -7,7 +8,8 @@ import time
 import requests
 
 
-_CACHED_TABLE = {}
+_CACHE_SIZE = 1000
+_CACHED_TABLE = collections.OrderedDict()
 
 
 def initialize_logging(name: str) -> logging.Logger:
@@ -28,12 +30,15 @@ logger = initialize_logging(__file__)
 
 def _cached_request(url: str, timeout: int = 10) -> T.Any:
     if url in _CACHED_TABLE:
+        _CACHED_TABLE.move_to_end(url)
         return _CACHED_TABLE[url]
     logger.debug("Send request to %s", url)
     response = requests.get(url, timeout=timeout)
     assert response.status_code == 200
     result = json.loads(response.text)
     _CACHED_TABLE[url] = result
+    if len(_CACHED_TABLE) > _CACHE_SIZE:
+        _CACHED_TABLE.popitem(last=False)
     return result
 
 
