@@ -71,7 +71,7 @@ class Market:
     @property
     def path(self) -> str:
         assert len(self.engines) == 1 and len(self.markets) == 1
-        return f"/engines/{self.engines[0]}/markets/{self.markets[0]}"
+        return f"/engines/{list(self.engines)[0]}/markets/{list(self.markets)[0]}"
 
     def specify(self, board: str) -> "Market":
         candidates: list["Market"] = []
