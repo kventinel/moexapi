@@ -148,9 +148,9 @@ def _parse_tickers(
 ) -> list[TickerBoardInfo]:
     secid_str = f"/securities/{secid}" if secid else "/securities"
     tickers = []
-    for path in market.pathes:
-        url = f"https://iss.moex.com/iss{path}{secid_str}.json"
-        tickers.extend(_parse_response(market, utils.json_api_call(url)))
+    for child_market in market.split():
+        url = f"https://iss.moex.com/iss{child_market.path}{secid_str}.json"
+        tickers.extend(_parse_response(child_market, utils.json_api_call(url)))
     return tickers
 
 

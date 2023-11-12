@@ -58,14 +58,20 @@ class Market:
     def candle_boards(self) -> set[str]:
         return self._join("_boards") | self._join("_candle_boards")
 
-    @property
-    def pathes(self) -> list[str]:
+    def split(self) -> list["Market"]:
         result = []
-        for engine in self.engines:
-            for market in self.markets:
-                result.append(f"/engines/{engine}/markets/{market}")
+        if len(self.engines) == 1 and len(self.markets) == 1:
+            result.append(self)
+        else:
+            for child in self._childs:
+                result.extend(child.split())
         assert len(result) > 0
         return result
+
+    @property
+    def path(self) -> str:
+        assert len(self.engines) == 1 and len(self.markets) == 1
+        return f"/engines/{self.engines[0]}/markets/{self.markets[0]}"
 
     def specify(self, board: str) -> "Market":
         candidates: list["Market"] = []
