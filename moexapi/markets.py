@@ -11,7 +11,7 @@ class Market:
         boards: set[str] = frozenset(),
         candle_boards: set[str] = frozenset(),
     ):
-        self.name = name
+        self._name = name
         self._engines = engines
         self._markets = markets
         self._boards = boards
@@ -84,10 +84,18 @@ class Market:
         return candidates[0].specify(board)
 
     def __str__(self) -> str:
-        return self.name
+        return self._name
 
     def __repr__(self) -> str:
-        return self.name
+        return self._name
+
+    def has(self, market: 'Market') -> bool:
+        if market._name == self._name:
+            return True
+        for child in self._childs:
+            if child.has(market):
+                return True
+        return False
 
 
 ALL = Market("all")

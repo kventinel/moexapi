@@ -69,7 +69,7 @@ class Ticker(TickerInfo, TickerBoardInfo):
             tickers = _parse_tickers(market=market, secid=cur_secid)
         if len(tickers) == 0:
             tickers = [ticker for ticker in _parse_tickers(market=market) if ticker.shortname == secid]
-        if len(tickers) == 0 and len(secid) == 3 and (market is None or market == markets.CURRENCY):
+        if len(tickers) == 0 and len(secid) == 3 and market.has(markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
             tickers = _parse_tickers(market=markets.CURRENCY, secid=cur_secid)
             if len(tickers) == 0:
