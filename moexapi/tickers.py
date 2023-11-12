@@ -25,6 +25,7 @@ CURRENTVALUE = "CURRENTVALUE"
 FACEVALUEONSETTLEDATE = "FACEVALUEONSETTLEDATE"
 FACEUNIT = "FACEUNIT"
 ACCRUEDINT = "ACCRUEDINT"
+VALTODAY = "VALTODAY"
 
 
 @dataclasses.dataclass
@@ -37,6 +38,7 @@ class TickerBoardInfo:
     price: T.Optional[float]
     accumulated_coupon: float
     listlevel: T.Optional[int]
+    value: T.Optional[float]
 
 
 @dataclasses.dataclass
@@ -130,7 +132,8 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
             raw_price=raw_price,
             price=price,
             accumulated_coupon=accumulated_coupon,
-            listlevel=sec_dict.get(LISTLEVEL)
+            listlevel=sec_dict.get(LISTLEVEL),
+            value=market_dict[VALTODAY],
         )
     for secid, value in boards.items():
         if secid in result:
