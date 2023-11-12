@@ -15,7 +15,7 @@ class Market:
         self._engines = engines
         self._markets = markets
         self._boards = boards
-        self._candle_baords = candle_boards
+        self._candle_boards = candle_boards
         self._parent = parent
         self._childs: list["Market"] = []
         if parent:
