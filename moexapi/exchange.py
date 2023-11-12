@@ -8,7 +8,7 @@ from . import tickers
 
 
 def get_moex_rate(currency: str) -> T.Optional[float]:
-    return tickers.Ticker(currency, market=markets.Markets.CURRENCY).price
+    return tickers.Ticker(currency, market=markets.CURRENCY).price
 
 
 def get_cbrf_rate(currency: str) -> float:

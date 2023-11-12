@@ -31,7 +31,7 @@ VALTODAY = "VALTODAY"
 @dataclasses.dataclass
 class TickerBoardInfo:
     secid: str
-    market: markets.Markets
+    market: markets.Market
     boards: list[str]
     shortname: str
     raw_price: T.Optional[float]
@@ -61,7 +61,7 @@ class TickerInfo:
 
 @dataclasses.dataclass
 class Ticker(TickerInfo, TickerBoardInfo):
-    def __init__(self, secid: str, market: T.Optional[markets.Markets] = None):
+    def __init__(self, secid: str, market: markets.Market = markets.ALL):
         tickers = _parse_tickers(market=market, secid=secid)
         cur_secid = changeover.get_ticker_current_name(secid)
         if len(tickers) == 0 and secid != cur_secid:
@@ -69,12 +69,12 @@ class Ticker(TickerInfo, TickerBoardInfo):
             tickers = _parse_tickers(market=market, secid=cur_secid)
         if len(tickers) == 0:
             tickers = [ticker for ticker in _parse_tickers(market=market) if ticker.shortname == secid]
-        if len(tickers) == 0 and len(secid) == 3 and (market is None or market == markets.Markets.CURRENCY):
+        if len(tickers) == 0 and len(secid) == 3 and (market is None or market == markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
-            tickers = _parse_tickers(market=markets.Markets.CURRENCY, secid=cur_secid)
+            tickers = _parse_tickers(market=markets.CURRENCY, secid=cur_secid)
             if len(tickers) == 0:
                 tickers = [
-                    ticker for ticker in _parse_tickers(market=markets.Markets.CURRENCY)
+                    ticker for ticker in _parse_tickers(market=markets.CURRENCY)
                     if ticker.shortname == cur_secid
                 ]
         assert len(tickers) == 1, f"Can't find ticker {secid}"
@@ -84,7 +84,7 @@ class Ticker(TickerInfo, TickerBoardInfo):
                 setattr(self, key, value) 
 
 
-def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoardInfo]:
+def _parse_response(market: markets.Market, response: T.Any) -> list[TickerBoardInfo]:
     securities = response["securities"]
     sec_columns: list = securities["columns"]
     sec_data: list = securities["data"]
@@ -99,12 +99,12 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
         market_dict = {key: value for key, value in zip(market_columns, market_line)}
         secid = sec_dict[SECID]
         board = sec_dict[BOARDID]
-        if market.board is not None and board not in market.board:
+        if len(market.boards) > 0 and board not in market.boards:
             boards[secid].append(board)
             continue
         else:
             assert secid not in result, "Second accurance of ticker {secid}"
-        if market == markets.Markets.INDEX or market == markets.Markets.INDEX:
+        if market == markets.INDEX:
             raw_price = market_dict[CURRENTVALUE]
         else:
             raw_price = market_dict[LAST]
@@ -143,20 +143,18 @@ def _parse_response(market: markets.Markets, response: T.Any) -> list[TickerBoar
 
 
 def _parse_tickers(
-    market: T.Optional[markets.Markets] = None,
+    market: markets.Market = markets.ALL,
     secid: T.Optional[str] = None
 ) -> list[TickerBoardInfo]:
     secid_str = f"/securities/{secid}" if secid else "/securities"
-    if market:
-        url = f"https://iss.moex.com/iss{market.path}{secid_str}.json"
-        return _parse_response(market, utils.json_api_call(url))
     tickers = []
-    for market in markets.Markets:
-        tickers.extend(_parse_tickers(market=market, secid=secid))
+    for path in market.pathes:
+        url = f"https://iss.moex.com/iss{path}{secid_str}.json"
+        tickers.extend(_parse_response(market, utils.json_api_call(url)))
     return tickers
 
 
-def get_tickers(market: T.Optional[markets.Markets] = None) -> list[Ticker]:
+def get_tickers(market: markets.Market = markets.ALL) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
     market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
     secids = set(ticker.secid for ticker in tickers)
