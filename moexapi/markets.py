@@ -98,13 +98,26 @@ class Market:
         return False
 
 
-ALL = Market("all")
-STOCK = Market("stock", parent=ALL, engines={"stock"})
-EQUITY = Market("equity", parent=STOCK, markets={"shares"})
-SHARES = Market("shares", parent=EQUITY, boards={"TQBR"}, candle_boards={"EQBR"})
-ETFS = Market("etfs", parent=EQUITY, boards={"TQTF"})
-BONDS = Market("bonds", parent=STOCK, markets={"bonds"})
-FEDERAL_BONDS = Market("federal bonds", parent=BONDS, boards={"TQOB"})
-COMPANY_BONDS = Market("company bonds", parent=BONDS, boards={"TQCB"})
-INDEX = Market("index", parent=STOCK, markets={"index"})
-CURRENCY = Market("currency", parent=ALL, engines={"currency"}, markets={"selt"}, boards={"CETS"})
+_ALL = Market("all")
+_STOCK = Market("stock", parent=_ALL, engines={"stock"})
+_EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
+_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR"}, candle_boards={"EQBR"})
+_ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF"})
+_BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
+_FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})
+_COMPANY_BONDS = Market("company bonds", parent=_BONDS, boards={"TQCB"})
+_INDEX = Market("index", parent=_STOCK, markets={"index"})
+_CURRENCY = Market("currency", parent=_ALL, engines={"currency"}, markets={"selt"}, boards={"CETS"})
+
+
+class Markets:
+    ALL = _ALL
+    STOCK = _STOCK
+    EQUITY = _EQUITY
+    SHARES = _SHARES
+    ETFS = _ETFS
+    BONDS = _BONDS
+    FEDERAL_BONDS = _FEDERAL_BONDS
+    COMPANY_BONDS = _COMPANY_BONDS
+    INDEX = _INDEX
+    CURRENCY = _CURRENCY

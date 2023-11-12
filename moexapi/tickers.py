@@ -61,7 +61,7 @@ class TickerInfo:
 
 @dataclasses.dataclass
 class Ticker(TickerInfo, TickerBoardInfo):
-    def __init__(self, secid: str, market: markets.Market = markets.ALL):
+    def __init__(self, secid: str, market: markets.Market = markets.Markets.ALL):
         tickers = _parse_tickers(market=market, secid=secid)
         cur_secid = changeover.get_ticker_current_name(secid)
         if len(tickers) == 0 and secid != cur_secid:
@@ -69,12 +69,12 @@ class Ticker(TickerInfo, TickerBoardInfo):
             tickers = _parse_tickers(market=market, secid=cur_secid)
         if len(tickers) == 0:
             tickers = [ticker for ticker in _parse_tickers(market=market) if ticker.shortname == secid]
-        if len(tickers) == 0 and len(secid) == 3 and market.has(markets.CURRENCY):
+        if len(tickers) == 0 and len(secid) == 3 and market.has(markets.Markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
-            tickers = _parse_tickers(market=markets.CURRENCY, secid=cur_secid)
+            tickers = _parse_tickers(market=markets.Markets.CURRENCY, secid=cur_secid)
             if len(tickers) == 0:
                 tickers = [
-                    ticker for ticker in _parse_tickers(market=markets.CURRENCY)
+                    ticker for ticker in _parse_tickers(market=markets.Markets.CURRENCY)
                     if ticker.shortname == cur_secid
                 ]
         assert len(tickers) == 1, f"Can't find ticker {secid}"
@@ -104,7 +104,7 @@ def _parse_response(market: markets.Market, response: T.Any) -> list[TickerBoard
             continue
         else:
             assert secid not in result, "Second accurance of ticker {secid}"
-        if market == markets.INDEX:
+        if market == markets.Markets.INDEX:
             raw_price = market_dict[CURRENTVALUE]
         else:
             raw_price = market_dict[LAST]
@@ -143,7 +143,7 @@ def _parse_response(market: markets.Market, response: T.Any) -> list[TickerBoard
 
 
 def _parse_tickers(
-    market: markets.Market = markets.ALL,
+    market: markets.Market = markets.Markets.ALL,
     secid: T.Optional[str] = None
 ) -> list[TickerBoardInfo]:
     secid_str = f"/securities/{secid}" if secid else "/securities"
@@ -154,7 +154,7 @@ def _parse_tickers(
     return tickers
 
 
-def get_tickers(market: markets.Market = markets.ALL) -> list[Ticker]:
+def get_tickers(market: markets.Market = markets.Markets.ALL) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
     market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
     secids = set(ticker.secid for ticker in tickers)
