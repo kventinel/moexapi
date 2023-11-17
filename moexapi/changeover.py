@@ -37,7 +37,7 @@ def get_prev_names(secid: str) -> list[str]:
         if line.new_secid == names[-1]:
             names.append(line.old_secid)
     return names
-            
+
 
 def get_ticker_current_name(secid: str) -> str:
     changeovers = sorted(get_changeovers(), key=lambda x: x.date)
