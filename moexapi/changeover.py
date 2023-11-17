@@ -10,8 +10,12 @@ class Changeover:
     old_secid: str
     new_secid: str
 
+    def __lt__(self, other: "Changeover"):
+        return self.date < other.date
+
 
 def get_changeovers() -> list[Changeover]:
+    """Return changeovers in sorted by date order"""
     result = []
     response = utils.json_api_call(
         "https://iss.moex.com/iss/history/engines/stock/markets/shares/securities/changeover.json"
@@ -22,16 +26,19 @@ def get_changeovers() -> list[Changeover]:
     for line in data:
         result.append(
             Changeover(
-                date=line[columns.index("action_date")],
+                date=datetime.date.fromisoformat(line[columns.index("action_date")]),
                 old_secid=line[columns.index("old_secid")],
                 new_secid=line[columns.index("new_secid")],
             )
         )
-    return result
+    result.append(
+        Changeover(date=datetime.date(2023, 9, 20), old_secid="SFTL", new_secid="SOFL"),
+    )
+    return sorted(result)
 
 
 def get_prev_names(secid: str) -> list[str]:
-    changeovers = sorted(get_changeovers(), key=lambda x: x.date, reverse=True)
+    changeovers = get_changeovers()[::-1]
     names = [secid]
     for line in changeovers:
         if line.new_secid == names[-1]:
@@ -40,12 +47,10 @@ def get_prev_names(secid: str) -> list[str]:
 
 
 def get_ticker_current_name(secid: str) -> str:
-    changeovers = sorted(get_changeovers(), key=lambda x: x.date)
+    changeovers = get_changeovers()
     for line in changeovers:
         if secid == line.old_secid:
             secid = line.new_secid
     if secid in ["RSTI", "RSTIP"]:
         return "FEES"
-    if secid == "SFTL":
-        return "SOFL"
     return secid
