@@ -61,6 +61,8 @@ class TickerInfo:
 
 @dataclasses.dataclass
 class Ticker(TickerInfo, TickerBoardInfo):
+    alias: str
+
     def __init__(self, secid: str, market: markets.Market = markets.Markets.ALL):
         tickers = _parse_tickers(market=market, secid=secid)
         cur_secid = changeover.get_ticker_current_name(secid)
@@ -79,6 +81,7 @@ class Ticker(TickerInfo, TickerBoardInfo):
                 ]
         assert len(tickers) == 1, f"Can't find ticker {secid}"
         super().__init__(tickers[0].secid)
+        self.alias = secid
         for key, value in dataclasses.asdict(tickers[0]).items():
             if getattr(self, key, None) is None:
                 setattr(self, key, value) 
