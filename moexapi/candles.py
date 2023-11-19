@@ -90,26 +90,23 @@ def _parse_candles_one_board(
             f"https://iss.moex.com/iss/history{ticker.market.path}/boards/{board}/"
             f"securities/{ticker.secid}.json{start_str}"
         )
-        history = response["history"]
-        columns = history["columns"]
-        data = history["data"]
-        for line in data:
-            line_dict = {key: value for key, value in zip(columns, line)}
-            date = datetime.date.fromisoformat(line_dict["TRADEDATE"])
+        history = utils.prepare_dict(response, "history")
+        for line in history:
+            date = datetime.date.fromisoformat(line["TRADEDATE"])
             start_date = date + datetime.timedelta(days=1)
             if end_date and date > end_date:
                 break
-            low = line_dict["LOW"]
-            high = line_dict["HIGH"]
-            open = line_dict["OPEN"]
-            close = line_dict["CLOSE"]
+            low = line["LOW"]
+            high = line["HIGH"]
+            open = line["OPEN"]
+            close = line["CLOSE"]
             if low is None or high is None or open is None or close is None:
                 continue
             if low == 0.0 or high == 0.0 or open == 0.0 or close == 0.0:
                 continue
-            volume = line_dict.get("VOLUME")
+            volume = line.get("VOLUME")
             if volume is None:
-                volume = line_dict.get("VOLRUR")
+                volume = line.get("VOLRUR")
             result.append(
                 Candle(
                     date=date,
@@ -117,13 +114,13 @@ def _parse_candles_one_board(
                     high=high,
                     open=open,
                     close=close,
-                    mid_price=line_dict.get("WAPRICE"),
-                    numtrades=line_dict.get("NUMTRADES"),
+                    mid_price=line.get("WAPRICE"),
+                    numtrades=line.get("NUMTRADES"),
                     volume=volume,
-                    value=line_dict.get("VALUE"),
+                    value=line.get("VALUE"),
                 )
             )
-        if len(data) == 0 or (end_date and start_date and start_date > end_date):
+        if len(history) == 0 or (end_date and start_date and start_date > end_date):
             break
     return result
 

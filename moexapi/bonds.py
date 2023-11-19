@@ -60,41 +60,31 @@ class Bond:
             response = utils.json_api_call(
                 f"https://iss.moex.com/iss/securities/{ticker.secid}/bondization.json?limit={limit}{start_str}"
             )
-            amortization = response["amortizations"]
-            amortization_columns = amortization["columns"]
-            amortization_data = amortization["data"]
-            coupons = response["coupons"]
-            coupons_columns = coupons["columns"]
-            coupons_data = coupons["data"]
-            offers = response["offers"]
-            offers_columns = offers["columns"]
-            offers_data = offers["data"]
+            amortization = utils.prepare_dict(response, "amortizations")
+            coupons = utils.prepare_dict(response, "coupons")
+            offers = utils.prepare_dict(response, "offers")
             end_date = None
-            for line in amortization_data:
-                date = datetime.date.fromisoformat(line[amortization_columns.index("amortdate")])
+            for line in amortization:
+                date = datetime.date.fromisoformat(line["amortdate"])
                 end_date = _max(end_date, date)
                 self.amortization.append(
-                    Amortization(
-                        date=date,
-                        value=line[amortization_columns.index("value")],
-                        initialfacevalue=line[amortization_columns.index("initialfacevalue")],
-                    )
+                    Amortization(date=date, value=line["value"], initialfacevalue=line["initialfacevalue"])
                 )
-            for line in coupons_data:
-                date = datetime.date.fromisoformat(line[coupons_columns.index("coupondate")])
+            for line in coupons:
+                date = datetime.date.fromisoformat(line["coupondate"])
                 end_date = _max(end_date, date)
                 self.coupons.append(
                     Coupon(
                         date=date,
-                        start_date=datetime.date.fromisoformat(line[coupons_columns.index("startdate")]),
-                        value=line[coupons_columns.index("value")],
-                        initialfacevalue=line[coupons_columns.index("initialfacevalue")],
+                        start_date=datetime.date.fromisoformat(line["startdate"]),
+                        value=line["value"],
+                        initialfacevalue=line["initialfacevalue"],
                     )
                 )
-            for line in offers_data:
-                date = datetime.date.fromisoformat(line[offers_columns.index("offerdate")])
+            for line in offers:
+                date = datetime.date.fromisoformat(line["offerdate"])
                 end_date = _max(end_date, date)
-                self.offers.append(Offer(date=date, value=line[coupons_columns.index("value")]))
+                self.offers.append(Offer(date=date, value=line["value"]))
             if end_date == start_date:
                 break
             start_date = end_date

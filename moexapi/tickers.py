@@ -3,7 +3,6 @@ import typing as T
 import collections
 import dataclasses
 
-from . import changeover
 from . import exchange
 from . import markets
 from . import utils
@@ -26,141 +25,190 @@ FACEVALUEONSETTLEDATE = "FACEVALUEONSETTLEDATE"
 FACEUNIT = "FACEUNIT"
 ACCRUEDINT = "ACCRUEDINT"
 VALTODAY = "VALTODAY"
+IS_TRADED = "is_traded"
+
+
+@dataclasses.dataclass
+class Listing:
+    secid: str
+    market: markets.Market
+    shortname: str
+
+    def __hash__(self):
+        return hash(self.secid) + hash(self.market)
 
 
 @dataclasses.dataclass
 class TickerBoardInfo:
-    secid: str
-    market: markets.Market
     boards: list[str]
-    shortname: str
     raw_price: T.Optional[float]
     price: T.Optional[float]
     accumulated_coupon: float
     listlevel: T.Optional[int]
     value: T.Optional[float]
 
+    @classmethod
+    def from_secid(cls, secid: str, market: markets.Market) -> T.Optional["TickerBoardInfo"]:
+        response = utils.json_api_call(f"https://iss.moex.com/iss{market.path}/securities/{secid}.json")
+        securities = utils.prepare_dict(response, "securities")
+        marketdata = utils.prepare_dict(response, "marketdata")
+        assert len(securities) == len(marketdata)
+        boards = []
+        result = None
+        for sec_line, market_line in zip(securities, marketdata):
+            board = sec_line[BOARDID]
+            if len(market.boards) > 0 and board not in market.boards:
+                boards.append(board)
+                continue
+            else:
+                assert result is None, f"Second accurance of ticker {secid}: {result.boards[0]} vs {board}"
+            if market == markets.Markets.INDEX:
+                raw_price = market_line[CURRENTVALUE]
+            else:
+                raw_price = market_line[LAST]
+                if raw_price is None:
+                    raw_price = sec_line[PREVPRICE]
+            accumulated_coupon = 0
+            if ACCRUEDINT in sec_line:
+                accumulated_coupon = sec_line[ACCRUEDINT]
+            lotvalue = sec_line.get(FACEVALUEONSETTLEDATE)
+            if lotvalue is None:
+                lotvalue = sec_line.get(LOTVALUE)
+            unit = sec_line.get(FACEUNIT, "RUB")
+            if lotvalue is not None and unit not in ["RUB", "SUR"]:
+                lotvalue *= exchange.get_rate(unit)
+            price = raw_price
+            if price is not None:
+                if lotvalue is not None:
+                    price *= lotvalue / 100
+                price += accumulated_coupon
+            result = cls(
+                boards=[board],
+                raw_price=raw_price,
+                price=price,
+                accumulated_coupon=accumulated_coupon,
+                listlevel=sec_line.get(LISTLEVEL),
+                value=market_line[VALTODAY],
+            )
+        if result:
+            result.boards.extend(boards)
+        return result
+
 
 @dataclasses.dataclass
 class TickerInfo:
+    is_traded: bool
+    shortname: T.Optional[str]
     isin: T.Optional[str]
     subtype: T.Optional[str]
     listlevel: T.Optional[int]
 
-    def __init__(self, secid: str):
-        self.secid = secid
+    @classmethod
+    def from_secid(cls, secid: str, market: markets.Market) -> "TickerInfo":
         response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
-        description = response["description"]
-        columns = description["columns"]
-        data = description["data"]
-        data_dict = {line[columns.index("name")]: line[columns.index("value")] for line in data}
-        self.isin = data_dict.get(ISIN)
-        self.subtype = data_dict.get(SECSUBTYPE)
-        self.listlevel = int(data_dict[LISTLEVEL]) if LISTLEVEL in data_dict else None
+        description_columns, description_data = response["description"]["columns"], response["description"]["data"]
+        description = {
+            line[description_columns.index("name")]: line[description_columns.index("value")]
+            for line in description_data
+        }
+        boards = utils.prepare_dict(response, "boards")
+        is_traded = False
+        for line in boards:
+            if market.boards is None or line[BOARDID.lower()] in market.boards and line[IS_TRADED] == 1:
+                is_traded = True
+        return cls(
+            shortname=description.get(SHORTNAME),
+            isin=description.get(ISIN),
+            subtype=description.get(SECSUBTYPE),
+            listlevel=int(description[LISTLEVEL]) if LISTLEVEL in description else None,
+            is_traded=is_traded
+        )
 
 
 @dataclasses.dataclass
-class Ticker(TickerInfo, TickerBoardInfo):
+class Ticker:
+    secid: str
     alias: str
+    is_traded: bool
+    market: markets.Market
+    shortname: T.Optional[str]
+    isin: T.Optional[str]
+    subtype: T.Optional[str]
+    listlevel: T.Optional[int]
+    boards: list[str] = dataclasses.field(default_factory=lambda: [])
+    raw_price: T.Optional[float] = None
+    price: T.Optional[float] = None
+    accumulated_coupon: T.Optional[float] = None
+    listlevel: T.Optional[int] = None
+    value: T.Optional[float] = None
 
-    def __init__(self, secid: str, market: markets.Market = markets.Markets.ALL):
-        tickers = _parse_tickers(market=market, secid=secid)
-        cur_secid = changeover.get_ticker_current_name(secid)
-        if len(tickers) == 0 and secid != cur_secid:
-            logger.info("change %s to %s", secid, cur_secid)
-            tickers = _parse_tickers(market=market, secid=cur_secid)
+    @classmethod
+    def from_secid(cls, secid: str, market: markets.Market = markets.Markets.ALL) -> "Ticker":
+        parsed_tickers = _parse_tickers(market=market)
+        tickers = [ticker for ticker in parsed_tickers if ticker.secid == secid]
         if len(tickers) == 0:
-            tickers = [ticker for ticker in _parse_tickers(market=market) if ticker.shortname == secid]
+            tickers = [ticker for ticker in parsed_tickers if ticker.shortname == secid]
         if len(tickers) == 0 and len(secid) == 3 and market.has(markets.Markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
-            tickers = _parse_tickers(market=markets.Markets.CURRENCY, secid=cur_secid)
+            tickers = [
+                ticker for ticker in parsed_tickers if ticker.secid == cur_secid and market == markets.Markets.CURRENCY
+            ]
             if len(tickers) == 0:
                 tickers = [
-                    ticker for ticker in _parse_tickers(market=markets.Markets.CURRENCY)
-                    if ticker.shortname == cur_secid
+                    ticker for ticker in parsed_tickers
+                    if ticker.shortname == cur_secid and market == markets.Markets.CURRENCY
                 ]
         assert len(tickers) == 1, f"Can't find ticker {secid}"
-        super().__init__(tickers[0].secid)
-        self.alias = secid
-        for key, value in dataclasses.asdict(tickers[0]).items():
-            if getattr(self, key, None) is None:
-                setattr(self, key, value) 
+        result = cls.from_listing(tickers[0])
+        result.alias = secid
+        return result
 
-
-def _parse_response(market: markets.Market, response: T.Any) -> list[TickerBoardInfo]:
-    securities = response["securities"]
-    sec_columns: list = securities["columns"]
-    sec_data: list = securities["data"]
-    marketdata = response["marketdata"]
-    market_columns: list = marketdata["columns"]
-    market_data: list = marketdata["data"]
-    assert len(sec_data) == len(market_data)
-    boards = collections.defaultdict(list)
-    result = {}
-    for sec_line, market_line in zip(sec_data, market_data):
-        sec_dict = {key: value for key, value in zip(sec_columns, sec_line)}
-        market_dict = {key: value for key, value in zip(market_columns, market_line)}
-        secid = sec_dict[SECID]
-        board = sec_dict[BOARDID]
-        if len(market.boards) > 0 and board not in market.boards:
-            boards[secid].append(board)
-            continue
-        else:
-            assert secid not in result, "Second accurance of ticker {secid}"
-        if market == markets.Markets.INDEX:
-            raw_price = market_dict[CURRENTVALUE]
-        else:
-            raw_price = market_dict[LAST]
-            if raw_price is None:
-                raw_price = sec_dict[PREVPRICE]
-        accumulated_coupon = 0
-        if ACCRUEDINT in sec_dict:
-            accumulated_coupon = sec_dict[ACCRUEDINT]
-        lotvalue = sec_dict.get(FACEVALUEONSETTLEDATE)
-        if lotvalue is None:
-            lotvalue = sec_dict.get(LOTVALUE)
-        unit = sec_dict.get(FACEUNIT, "RUB")
-        if lotvalue is not None and unit not in ["RUB", "SUR"]:
-            lotvalue *= exchange.get_rate(unit)
-        price = raw_price
-        if price is not None:
-            if lotvalue is not None:
-                price *= lotvalue / 100
-            price += accumulated_coupon
-        result[secid] = TickerBoardInfo(
-            secid=secid,
-            boards=[board],
-            market=market,
-            shortname=sec_dict[SHORTNAME],
-            raw_price=raw_price,
-            price=price,
-            accumulated_coupon=accumulated_coupon,
-            listlevel=sec_dict.get(LISTLEVEL),
-            value=market_dict[VALTODAY],
+    @classmethod
+    def from_listing(cls, listing: Listing) -> "Ticker":
+        info = TickerInfo.from_secid(listing.secid, listing.market)
+        assert info.shortname is None or listing.shortname == info.shortname
+        result = cls(
+            secid=listing.secid,
+            alias=listing.secid,
+            is_traded=info.is_traded,
+            market=listing.market,
+            shortname=listing.shortname,
+            isin=info.isin,
+            subtype=info.subtype,
+            listlevel=info.listlevel,
         )
-    for secid, value in boards.items():
-        if secid in result:
-            result[secid].boards.extend(value)
-    logger.debug("Bad boards for tickers: %s", str(boards.keys() - result.keys()))
-    return list(result.values())
+        board_info = TickerBoardInfo.from_secid(listing.secid, listing.market)
+        if board_info is not None:
+            for key, value in dataclasses.asdict(board_info).items():
+                if getattr(result, key, None) is None:
+                    setattr(result, key, value)
+                elif key != "boards" and getattr(result, key) != value:
+                    logger.warning(f"{getattr(result, key)} vs {value} for {key} (use first)")
+        return result
 
 
-def _parse_tickers(
-    market: markets.Market = markets.Markets.ALL,
-    secid: T.Optional[str] = None
-) -> list[TickerBoardInfo]:
-    secid_str = f"/securities/{secid}" if secid else "/securities"
-    tickers = []
-    for child_market in market.split():
-        url = f"https://iss.moex.com/iss{child_market.path}{secid_str}.json"
-        tickers.extend(_parse_response(child_market, utils.json_api_call(url)))
-    return tickers
+def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing]:
+    tickers = set()
+    for child_market in market.childs():
+        idx = 0
+        while True:
+            start = f"?start={idx}"
+            response = utils.json_api_call(
+                f"https://iss.moex.com/iss/history{child_market.board_path}/listing.json{start}"
+            )
+            securities = utils.prepare_dict(response, "securities")
+            if len(securities) == 0:
+                break
+            for line in securities:
+                tickers.add(Listing(secid=line[SECID], market=child_market, shortname=line[SHORTNAME]))
+            idx += len(securities)
+    return list(tickers)
+
+
+def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL) -> Ticker:
+    return Ticker.from_secid(secid, market=market)
 
 
 def get_tickers(market: markets.Market = markets.Markets.ALL) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
-    market_secids = set((ticker.market, ticker.secid) for ticker in tickers)
-    secids = set(ticker.secid for ticker in tickers)
-    if len(secids) != len(market_secids):
-        raise RuntimeError(f"One secid in different markets")
-    return [Ticker(secid=secid, market=market) for market, secid in market_secids]
+    return [Ticker.from_secid(secid=ticker.secid, market=ticker.market) for ticker in tickers]

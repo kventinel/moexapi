@@ -53,3 +53,7 @@ def json_api_call(url: str, retries: int = 10, timeout: int = 10, wait: int = 10
     logger.error(f"Can't parse results from {url}")
     assert last_ex is not None
     raise last_ex
+
+
+def prepare_dict(response: T.Any, name: str) -> list[list[dict[str, T.Any]]]:
+    return [{key: value for key, value in zip(response[name]["columns"], line)} for line in response[name]["data"]]
