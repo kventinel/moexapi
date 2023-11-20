@@ -57,7 +57,7 @@ class TickerBoardInfo:
         result = None
         for sec_line, market_line in zip(securities, marketdata):
             board = sec_line[BOARDID]
-            if len(market.boards) > 0 and board not in market.boards:
+            if market.boards and board not in market.boards:
                 boards.append(board)
                 continue
             else:
@@ -114,7 +114,7 @@ class TickerInfo:
         boards = utils.prepare_dict(response, "boards")
         is_traded = False
         for line in boards:
-            if market.boards is None or line[BOARDID.lower()] in market.boards and line[IS_TRADED] == 1:
+            if not market.boards or line[BOARDID.lower()] in market.boards and line[IS_TRADED] == 1:
                 is_traded = True
         return cls(
             shortname=description.get(SHORTNAME),
@@ -180,9 +180,9 @@ class Ticker:
         board_info = TickerBoardInfo.from_secid(listing.secid, listing.market)
         if board_info is not None:
             for key, value in dataclasses.asdict(board_info).items():
-                if getattr(result, key, None) is None:
+                if getattr(result, key, None) is None or getattr(result, key, None) == []:
                     setattr(result, key, value)
-                elif key != "boards" and getattr(result, key) != value:
+                elif getattr(result, key) != value:
                     logger.warning(f"{getattr(result, key)} vs {value} for {key} (use first)")
         return result
 
