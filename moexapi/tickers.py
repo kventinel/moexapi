@@ -151,12 +151,12 @@ class Ticker:
         if len(tickers) == 0 and len(secid) == 3 and market.has(markets.Markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
             tickers = [
-                ticker for ticker in parsed_tickers if ticker.secid == cur_secid and market == markets.Markets.CURRENCY
+                ticker for ticker in parsed_tickers if ticker.secid == cur_secid and market.has(markets.Markets.CURRENCY)
             ]
             if len(tickers) == 0:
                 tickers = [
                     ticker for ticker in parsed_tickers
-                    if ticker.shortname == cur_secid and market == markets.Markets.CURRENCY
+                    if ticker.shortname == cur_secid and market.has(markets.Markets.CURRENCY)
                 ]
         assert len(tickers) == 1, f"Can't find ticker {secid}"
         result = cls.from_listing(tickers[0])
