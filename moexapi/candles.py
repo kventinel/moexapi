@@ -13,6 +13,19 @@ from . import utils
 
 @dataclasses.dataclass
 class Candle:
+    """
+    Candle for given ticker and date
+
+    date -- date of candle
+    low -- lowest price of the day
+    high -- highest price of the day
+    open -- open price of the day
+    close -- close price of the day
+    mid_price -- weighted average price of the day
+    numtrades -- number of trades for the day
+    volume -- number of shares/bonds/currencies sold on the day
+    value -- sum of all transactions in RUB for the day
+    """
     date: datetime.date
     low: float
     high: float
