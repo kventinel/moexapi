@@ -92,6 +92,11 @@ class Market:
                 return True
         return False
 
+    def __eq__(self, other: 'Market') -> bool:
+        return self._name == other._name
+
+    def __hash__(self) -> int:
+        return hash(self._name)
 
 _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
