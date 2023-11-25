@@ -5,6 +5,7 @@ import dataclasses
 import datetime
 
 from . import changeover
+from . import markets
 from . import splits
 from . import tickers
 from . import utils
@@ -104,9 +105,9 @@ def _parse_candles_one_board(
                 continue
             if low == 0.0 or high == 0.0 or open == 0.0 or close == 0.0:
                 continue
-            volume = line.get("VOLUME")
-            if volume is None:
-                volume = line.get("VOLRUR")
+            value = line.get("VALUE")
+            if ticker.market == markets.Markets.CURRENCY:
+                value = line.get("VOLRUR")
             result.append(
                 Candle(
                     date=date,
@@ -116,8 +117,8 @@ def _parse_candles_one_board(
                     close=close,
                     mid_price=line.get("WAPRICE"),
                     numtrades=line.get("NUMTRADES"),
-                    volume=volume,
-                    value=line.get("VALUE"),
+                    volume=line.get("VOLUME"),
+                    value=value,
                 )
             )
         if len(history) == 0 or (end_date and start_date and start_date > end_date):
