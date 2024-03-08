@@ -166,6 +166,6 @@ def get_candles(
     result = _merge_candles_list(candles)
     for split in ticker_splits:
         for candle in result:
-            if candle.date <= split.date:
+            if candle.date < split.date:
                 candle.mult(1 / split.mult)
     return result
