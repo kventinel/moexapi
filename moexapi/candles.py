@@ -5,7 +5,6 @@ import dataclasses
 import datetime
 
 from . import changeover
-from . import markets
 from . import splits
 from . import tickers
 from . import utils
@@ -14,39 +13,47 @@ from . import utils
 @dataclasses.dataclass
 class Candle:
     """
-    Candle for given ticker and date
+    Candle for given ticker
 
-    date -- date of candle
+    start -- datetime of candle start
+    end -- datetime of candle end
     low -- lowest price of the day
     high -- highest price of the day
     open -- open price of the day
     close -- close price of the day
-    mid_price -- weighted average price of the day
-    numtrades -- number of trades for the day
     volume -- number of shares/bonds/currencies sold on the day
     value -- sum of all transactions in RUB for the day
     """
-    date: datetime.date
+    start: datetime.datetime
+    end: datetime.datetime
     low: float
     high: float
     open: float
     close: float
-    mid_price: T.Optional[float]
-    numtrades: T.Optional[int]
     volume: T.Optional[int]
     value: T.Optional[float]
 
     @classmethod
     def merge(cls, first: 'Candle', second: 'Candle'):
-        assert first.date == second.date
+        if second.start < first.start:
+            start = second.start
+            open = second.open
+        else:
+            start = first.start
+            open = first.open
+        if second.end < first.end:
+            end = first.end
+            close = first.close
+        else:
+            end = second.end
+            close = second.close
         return cls(
-            date=first.date,
+            start=start,
+            end=end,
             low=min(first.low, second.low),
             high=max(first.high, second.high),
-            open=(first.open + second.open) / 2,
-            close=(first.close + second.close) / 2,
-            mid_price=(first.mid_price + second.mid_price) / 2,
-            numtrades=first.numtrades + second.numtrades,
+            open=open,
+            close=close,
             volume=first.volume + second.volume,
             value=first.value + second.value,
         )
@@ -56,7 +63,6 @@ class Candle:
         self.high *= mult
         self.open *= mult
         self.close *= mult
-        self.mid_price *= mult
         self.value *= mult
 
 
@@ -65,22 +71,20 @@ def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
     j = 0
     result: list[Candle] = []
     while i < len(first) and j < len(second):
-        if first[i].date == second[j].date:
+        if first.end <= second.start:
+            result.append(first[i])
+            i += 1
+        elif second.end <= first.start:
+            result.append(second[j])
+            j += 1
+        else:
             result.append(Candle.merge(first[i], second[j]))
             i += 1
             j += 1
-        elif first[i].date < second[j].date:
-            result.append(first[i])
-            i += 1
-        else:
-            result.append(second[j])
-            j += 1
-    while i < len(first):
-        result.append(first[i])
-        i += 1
-    while j < len(second):
-        result.append(second[j])
-        j += 1
+    if i < len(first):
+        result.extend(first[i:])
+    if j < len(second):
+        result.extend(second[j:])
     return result
 
 
@@ -94,67 +98,69 @@ def _merge_candles_list(candles: list[list[Candle]]) -> list[Candle]:
 def _parse_candles_one_board(
     ticker: tickers.Ticker,
     board: str,
-    start_date: T.Optional[datetime.date] = None,
-    end_date: T.Optional[datetime.date] = None,
+    start_date: T.Optional[datetime.datetime] = None,
+    end_date: T.Optional[datetime.datetime] = None,
+    interval: T.Optional[int] = None,
 ) -> list[Candle]:
     result = []
     while True:
-        start_str = f"?from={start_date.isoformat()}" if start_date else ""
+        start_str = f"from={start_date.isoformat()}" if start_date else ""
+        end_str = f"till={end_date.isoformat()}" if end_date else ""
+        interval_str = f"interval={interval}" if interval else ""
+        query = "?" + "&".join([item for item in [start_str, end_str, interval_str] if item])
         response = utils.json_api_call(
-            f"https://iss.moex.com/iss/history{ticker.market.path}/boards/{board}/"
-            f"securities/{ticker.secid}.json{start_str}"
+            f"https://iss.moex.com/iss{ticker.market.path}/boards/{board}/securities/{ticker.secid}/candles.json{query}"
         )
-        history = utils.prepare_dict(response, "history")
-        for line in history:
-            date = datetime.date.fromisoformat(line["TRADEDATE"])
-            start_date = date + datetime.timedelta(days=1)
-            if end_date and date > end_date:
-                break
-            low = line["LOW"]
-            high = line["HIGH"]
-            open = line["OPEN"]
-            close = line["CLOSE"]
+        candles = utils.prepare_dict(response, "candles")
+        for line in candles:
+            start = datetime.datetime.fromisoformat(line["begin"])
+            end = datetime.datetime.fromisoformat(line["end"])
+            start_date = end
+            low = line["low"]
+            high = line["high"]
+            open = line["open"]
+            close = line["close"]
             if low is None or high is None or open is None or close is None:
                 continue
             if low == 0.0 or high == 0.0 or open == 0.0 or close == 0.0:
                 continue
-            value = line.get("VALUE")
-            if ticker.market == markets.Markets.CURRENCY:
-                value = line.get("VOLRUR")
             result.append(
                 Candle(
-                    date=date,
+                    start=start,
+                    end=end,
                     low=low,
                     high=high,
                     open=open,
                     close=close,
-                    mid_price=line.get("WAPRICE"),
-                    numtrades=line.get("NUMTRADES"),
-                    volume=line.get("VOLUME"),
-                    value=value,
+                    volume=line.get("volume"),
+                    value=line.get("value"),
                 )
             )
-        if len(history) == 0 or (end_date and start_date and start_date > end_date):
+        if len(candles) == 0:
             break
     return result
 
 
 def _parse_candles(
     ticker: tickers.Ticker,
-    start_date: T.Optional[datetime.date] = None,
-    end_date: T.Optional[datetime.date] = None,
+    start_date: T.Optional[datetime.datetime] = None,
+    end_date: T.Optional[datetime.datetime] = None,
+    interval: T.Optional[int] = None,
 ):
     candles = []
     boards = ticker.market.candle_boards if ticker.market.candle_boards else ticker.boards
     for board in boards:
-        candles.append(_parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date))
+        candles.append(
+            _parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date, interval=interval)
+        )
     return _merge_candles_list(candles)
 
 
 def get_candles(
     ticker: tickers.Ticker,
-    start_date: T.Optional[datetime.date] = None,
-    end_date: T.Optional[datetime.date] = None,
+    start_date: T.Optional[datetime.datetime] = None,
+    end_date: T.Optional[datetime.datetime] = None,
+    interval: T.Optional[int] = None,
 ):
     ticker = copy.deepcopy(ticker)
     prev_names = changeover.get_prev_names(ticker.secid)
@@ -162,10 +168,10 @@ def get_candles(
     candles = []
     for name in prev_names:
         ticker.secid = name
-        candles.append(_parse_candles(ticker, start_date=start_date, end_date=end_date))
+        candles.append(_parse_candles(ticker, start_date=start_date, end_date=end_date, interval=interval))
     result = _merge_candles_list(candles)
     for split in ticker_splits:
         for candle in result:
-            if candle.date < split.date:
+            if candle.end < split.date:
                 candle.mult(1 / split.mult)
     return result
