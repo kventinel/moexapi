@@ -4,11 +4,25 @@ import copy
 import dataclasses
 import datetime
 
+import numpy as np
+
 from . import changeover
 from . import markets
 from . import splits
 from . import tickers
 from . import utils
+
+
+def _maybe_sum(first, second):
+    if first is None and second is None:
+        return None
+    return sum([item for item in [first, second] if item is not None])
+
+
+def _maybe_mean(first, second):
+    if first is None and second is None:
+        return None
+    return np.mean([item for item in [first, second] if item is not None])
 
 
 @dataclasses.dataclass
@@ -32,7 +46,7 @@ class History:
     open: float
     close: float
     mid_price: T.Optional[float]
-    numtrades: T.Optional[int]
+    numtrades: int
     volume: T.Optional[int]
     value: T.Optional[float]
 
@@ -45,10 +59,10 @@ class History:
             high=max(first.high, second.high),
             open=(first.open + second.open) / 2,
             close=(first.close + second.close) / 2,
-            mid_price=(first.mid_price + second.mid_price) / 2,
+            mid_price=_maybe_mean(first.mid_price, second.mid_price),
             numtrades=first.numtrades + second.numtrades,
-            volume=first.volume + second.volume,
-            value=first.value + second.value,
+            volume=_maybe_sum(first.volume, second.volume),
+            value=_maybe_sum(first.value, second.value),
         )
     
     def mult(self, mult: float) -> None:
@@ -95,7 +109,7 @@ def _parse_history(
     end_date: T.Optional[datetime.date] = None,
 ) -> list[History]:
     result: list[History] = []
-    prev_size = 0
+    prev_date = start_date
     while True:
         start_str = f"from={start_date.isoformat()}" if start_date else ""
         end_str = f"till={end_date.isoformat()}" if end_date else ""
@@ -125,7 +139,7 @@ def _parse_history(
                 open=open,
                 close=close,
                 mid_price=line.get("WAPRICE"),
-                numtrades=line.get("NUMTRADES"),
+                numtrades=line.get("NUMTRADES", 0),
                 volume=line.get("VOLUME"),
                 value=value,
             )
@@ -138,9 +152,9 @@ def _parse_history(
             else:
                 boards = [board]
                 result.append(item)
-        if len(result) == prev_size:
+        if prev_date == start_date:
             break
-        prev_size = len(result)
+        prev_date = start_date
     return result
 
 
