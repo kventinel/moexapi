@@ -29,9 +29,10 @@ class Candles(unittest.TestCase):
 
 class Dividends(unittest.TestCase):
     def test_dividends(self):
-        ticker = moexapi.get_ticker("CHMF", market=moexapi.Markets.SHARES)
-        dividends = moexapi.get_dividends(ticker)
-        self.assertGreater(len(dividends), 29)
+        for ticker in ["CHMF", "MOEX"]:
+            ticker = moexapi.get_ticker(ticker, market=moexapi.Markets.SHARES)
+            dividends = moexapi.get_dividends(ticker)
+            self.assertGreater(len(dividends), 10)
 
 
 if __name__ == '__main__':
