@@ -106,6 +106,7 @@ def _parse_history(
         boards = []
         for line in history:
             date = datetime.date.fromisoformat(line["TRADEDATE"])
+            start_date = date
             low = line["LOW"]
             high = line["HIGH"]
             open = line["OPEN"]
