@@ -98,7 +98,7 @@ def _parse_history_one_board(
     result = []
     while True:
         start_str = f"from={start_date.isoformat()}" if start_date else ""
-        end_str = f"from={end_date.isoformat()}" if end_date else ""
+        end_str = f"till={end_date.isoformat()}" if end_date else ""
         query = f"?{start_str}&{end_str}"
         response = utils.json_api_call(
             f"https://iss.moex.com/iss/history{ticker.market.path}/boards/{board}/"
