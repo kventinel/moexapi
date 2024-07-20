@@ -1,6 +1,7 @@
 from .bonds import *
 from .candles import *
 from .changeover import *
+from .dividends import *
 from .exchange import *
 from .history import *
 from .markets import *
