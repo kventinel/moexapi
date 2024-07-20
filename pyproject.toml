@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "moexapi"
-version = "1.6.2"
+version = "1.6.3"
 description = "Python API for MOEX ISS"
 readme = "README.md"
 authors = [{ name = "Aliaksei Rak", email = "kventinel@gmail.com" }]

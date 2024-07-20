@@ -89,25 +89,23 @@ def _merge_history_list(candles: list[list[History]]) -> list[History]:
     return result
 
 
-def _parse_history_one_board(
+def _parse_history(
     ticker: tickers.Ticker,
-    board: str,
     start_date: T.Optional[datetime.date] = None,
     end_date: T.Optional[datetime.date] = None,
 ) -> list[History]:
-    result = []
+    result: list[History] = []
+    prev_size = 0
     while True:
         start_str = f"from={start_date.isoformat()}" if start_date else ""
         end_str = f"till={end_date.isoformat()}" if end_date else ""
         query = f"?{start_str}&{end_str}"
-        response = utils.json_api_call(
-            f"https://iss.moex.com/iss/history{ticker.market.path}/boards/{board}/"
-            f"securities/{ticker.secid}.json{query}"
-        )
+        url = f"https://iss.moex.com/iss/history{ticker.market.path}/securities/{ticker.secid}.json{query}"
+        response = utils.json_api_call(url)
         history = utils.prepare_dict(response, "history")
+        boards = []
         for line in history:
             date = datetime.date.fromisoformat(line["TRADEDATE"])
-            start_date = date + datetime.timedelta(days=1)
             low = line["LOW"]
             high = line["HIGH"]
             open = line["OPEN"]
@@ -119,34 +117,30 @@ def _parse_history_one_board(
             value = line.get("VALUE")
             if ticker.market == markets.Markets.CURRENCY:
                 value = line.get("VOLRUR")
-            result.append(
-                History(
-                    date=date,
-                    low=low,
-                    high=high,
-                    open=open,
-                    close=close,
-                    mid_price=line.get("WAPRICE"),
-                    numtrades=line.get("NUMTRADES"),
-                    volume=line.get("VOLUME"),
-                    value=value,
-                )
+            item = History(
+                date=date,
+                low=low,
+                high=high,
+                open=open,
+                close=close,
+                mid_price=line.get("WAPRICE"),
+                numtrades=line.get("NUMTRADES"),
+                volume=line.get("VOLUME"),
+                value=value,
             )
-        if len(history) == 0:
+            board = line["BOARDID"]
+            if len(result) > 0 and result[-1].date == date:
+                if board in boards:
+                    continue
+                boards.append(board)
+                result[-1] = History.merge(result[-1], item)
+            else:
+                boards = [board]
+                result.append(item)
+        if len(result) == prev_size:
             break
+        prev_size = len(result)
     return result
-
-
-def _parse_history(
-    ticker: tickers.Ticker,
-    start_date: T.Optional[datetime.date] = None,
-    end_date: T.Optional[datetime.date] = None,
-):
-    candles = []
-    boards = ticker.market.candle_boards if ticker.market.candle_boards else ticker.boards
-    for board in boards:
-        candles.append(_parse_history_one_board(ticker, board, start_date=start_date, end_date=end_date))
-    return _merge_history_list(candles)
 
 
 def get_history(
