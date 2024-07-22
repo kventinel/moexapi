@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import datetime
 import unittest
 
 import moexapi
@@ -25,6 +26,12 @@ class Candles(unittest.TestCase):
         history = moexapi.get_history(ticker)
         self.assertGreater(len(candles), 0)
         self.assertGreater(len(history), 0)
+
+    def test_midprice(self):
+        ticker = moexapi.get_ticker('SU26229RMFS3')
+        history = moexapi.get_history(ticker, start_date=datetime.date(2019, 6, 5), end_date=datetime.date(2019, 6, 5))
+        self.assertEqual(len(history), 1)
+        self.assertAlmostEqual(history[0].mid_price, 97.865)
 
 
 class Dividends(unittest.TestCase):

@@ -45,7 +45,7 @@ class History:
     high: float
     open: float
     close: float
-    mid_price: T.Optional[float]
+    mid_price: float
     numtrades: int
     volume: T.Optional[int]
     value: T.Optional[float]
@@ -138,8 +138,8 @@ def _parse_history(
                 high=high,
                 open=open,
                 close=close,
-                mid_price=line.get("WAPRICE", np.mean([low, high, open, close])),
-                numtrades=line.get("NUMTRADES", 0),
+                mid_price=line.get('WAPRICE') or np.mean([low, high, open, close]),
+                numtrades=line.get("NUMTRADES") or 0,
                 volume=line.get("VOLUME"),
                 value=value,
             )
