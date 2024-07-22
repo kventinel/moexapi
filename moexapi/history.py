@@ -138,7 +138,7 @@ def _parse_history(
                 high=high,
                 open=open,
                 close=close,
-                mid_price=line.get("WAPRICE"),
+                mid_price=line.get("WAPRICE", np.mean([low, high, open, close])),
                 numtrades=line.get("NUMTRADES", 0),
                 volume=line.get("VOLUME"),
                 value=value,
