@@ -9,13 +9,11 @@ class Market:
         engines: set[str] = frozenset(),
         markets: set[str] = frozenset(),
         boards: set[str] = frozenset(),
-        candle_boards: set[str] = frozenset(),
     ):
         self._name = name
         self._engines = engines
         self._markets = markets
         self._boards = boards
-        self._candle_boards = candle_boards
         self._parent = parent
         self._childs: list["Market"] = []
         if parent:
@@ -53,10 +51,6 @@ class Market:
     @property
     def boards(self) -> set[str]:
         return self._join("_boards")
-
-    @property
-    def candle_boards(self) -> set[str]:
-        return self._join("_boards") | self._join("_candle_boards")
     
     def childs(self) -> list["Market"]:
         if len(self._childs) == 0:
@@ -70,13 +64,6 @@ class Market:
     def path(self) -> str:
         assert len(self.engines) == 1 and len(self.markets) == 1
         return f"/engines/{list(self.engines)[0]}/markets/{list(self.markets)[0]}"
-
-    @property
-    def board_path(self) -> str:
-        assert len(self.boards) <= 1
-        if len(self.boards) == 0:
-            return self.path
-        return f"{self.path}/boards/{list(self.boards)[0]}"
 
     def __str__(self) -> str:
         return self._name
@@ -101,7 +88,7 @@ class Market:
 _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
 _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
-_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR"}, candle_boards={"EQBR"})
+_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR"})
 _ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
 _FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})

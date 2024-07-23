@@ -194,7 +194,7 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
         while True:
             start = f"?start={idx}"
             response = utils.json_api_call(
-                f"https://iss.moex.com/iss/history{child_market.board_path}/listing.json{start}"
+                f"https://iss.moex.com/iss/history{child_market.path}/listing.json{start}"
             )
             securities = utils.prepare_dict(response, "securities")
             if len(securities) == 0:

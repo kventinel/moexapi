@@ -148,8 +148,7 @@ def _parse_candles(
     interval: T.Optional[int] = None,
 ):
     candles = []
-    boards = ticker.market.candle_boards if ticker.market.candle_boards else ticker.boards
-    for board in boards:
+    for board in ticker.boards:
         candles.append(
             _parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date, interval=interval)
         )
