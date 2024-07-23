@@ -23,7 +23,7 @@ def get_dividends(ticker: tickers.Ticker) -> Dividends:
     dividends: Dividends = []
     for line in data:
         date = datetime.date.fromisoformat(line[columns.index('registryclosedate')])
-        if date > datetime.date.today() + datetime.timedelta(days=365):
+        if date > datetime.date.today():
             continue
         value = line[columns.index('value')]
         price = history.get_history(ticker, start_date=date, end_date=date + datetime.timedelta(days=5))
