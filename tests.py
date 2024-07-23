@@ -15,7 +15,7 @@ class Candles(unittest.TestCase):
 
     def test_share(self):
         for ticker in ["GAZP", "SBERP", "SBERP03"]:
-            ticker = moexapi.get_ticker("GAZP")
+            ticker = moexapi.get_ticker(ticker)
             candles = moexapi.get_candles(
                 ticker,
                 start_date=datetime.date(2023, 1, 1),

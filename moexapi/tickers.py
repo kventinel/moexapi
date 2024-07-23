@@ -158,7 +158,7 @@ class Ticker:
                     ticker for ticker in parsed_tickers
                     if ticker.shortname == cur_secid and market.has(markets.Markets.CURRENCY)
                 ]
-        assert len(tickers) == 1, f"Can't find ticker {secid}"
+        assert len(tickers) == 1, f"Can't find ticker {secid}, len(tickers) == {len(tickers)}"
         result = cls.from_listing(tickers[0])
         result.alias = secid
         return result
@@ -200,7 +200,8 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
             if len(securities) == 0:
                 break
             for line in securities:
-                tickers.add(Listing(secid=line[SECID], market=child_market, shortname=line[SHORTNAME]))
+                if line[BOARDID] in child_market.boards:
+                    tickers.add(Listing(secid=line[SECID], market=child_market, shortname=line[SHORTNAME]))
             idx += len(securities)
     return list(tickers)
 
