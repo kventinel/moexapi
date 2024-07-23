@@ -162,13 +162,12 @@ def get_candles(
     end_date: T.Optional[datetime.datetime] = None,
     interval: T.Optional[int] = None,
 ):
-    ticker = copy.deepcopy(ticker)
-    prev_names = changeover.get_prev_names(ticker.secid)
-    ticker_splits = [split for split in splits.get_splits() if split.secid in prev_names]
+    ticker = changeover.get_current_ticker(ticker)
+    prev_tickers = changeover.get_prev_tickers(ticker)
+    ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
     candles = []
-    for name in prev_names:
-        ticker.secid = name
-        candles.append(_parse_candles(ticker, start_date=start_date, end_date=end_date, interval=interval))
+    for t in prev_tickers:
+        candles.append(_parse_candles(t, start_date=start_date, end_date=end_date, interval=interval))
     result = _merge_candles_list(candles)
     for split in ticker_splits:
         for candle in result:

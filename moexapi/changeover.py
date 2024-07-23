@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 
+from . import tickers
 from . import utils
 
 
@@ -35,20 +36,20 @@ def get_changeovers() -> list[Changeover]:
     return sorted(result)
 
 
-def get_prev_names(secid: str) -> list[str]:
+def get_prev_tickers(ticker: tickers.Ticker) -> list[tickers.Ticker]:
     changeovers = get_changeovers()[::-1]
-    names = [secid]
+    result = [ticker]
     for line in changeovers:
-        if line.new_secid == names[-1]:
-            names.append(line.old_secid)
-    return names
+        if line.new_secid == result[-1].secid:
+            result.insert(0, tickers.get_ticker(line.old_secid, market=ticker.market))
+    return result
 
 
-def get_ticker_current_name(secid: str) -> str:
+def get_current_ticker(ticker: tickers.Ticker) -> tickers.Ticker:
     changeovers = get_changeovers()
     for line in changeovers:
-        if secid == line.old_secid:
-            secid = line.new_secid
-    if secid in ["RSTI", "RSTIP"]:
-        return "FEES"
-    return secid
+        if ticker.secid == line.old_secid:
+            ticker = tickers.get_ticker(line.new_secid, market=ticker.market)
+    if ticker.secid in ["RSTI", "RSTIP"]:
+        ticker.get_ticker("FEES", market=ticker.market)
+    return ticker

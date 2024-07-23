@@ -163,13 +163,12 @@ def get_history(
     start_date: T.Optional[datetime.date] = None,
     end_date: T.Optional[datetime.date] = None,
 ):
-    ticker = copy.deepcopy(ticker)
-    prev_names = changeover.get_prev_names(ticker.secid)
-    ticker_splits = [split for split in splits.get_splits() if split.secid in prev_names]
+    ticker = changeover.get_current_ticker(ticker)
+    prev_tickers = changeover.get_prev_tickers(ticker)
+    ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
     candles = []
-    for name in prev_names:
-        ticker.secid = name
-        candles.append(_parse_history(ticker, start_date=start_date, end_date=end_date))
+    for t in prev_tickers:
+        candles.append(_parse_history(t, start_date=start_date, end_date=end_date))
     result = _merge_history_list(candles)
     for split in ticker_splits:
         for candle in result:
