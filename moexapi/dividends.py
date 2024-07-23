@@ -27,6 +27,6 @@ def get_dividends(ticker: tickers.Ticker) -> Dividends:
             continue
         value = line[columns.index('value')]
         price = history.get_history(ticker, start_date=date, end_date=date + datetime.timedelta(days=5))
-        assert len(price) >= 1
+        assert len(price) >= 1, f"{ticker.secid}, {date}"
         dividends.append(Dividend(date=date, value=value, part=value / price[0].close))
     return dividends
