@@ -88,7 +88,7 @@ class Market:
 _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
 _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
-_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR", "EQNE"})
+_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR", "EQNE", "EQNL"})
 _ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
 _FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})

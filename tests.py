@@ -7,7 +7,7 @@ import moexapi
 
 class Tickers(unittest.TestCase):
     def test_shares(self):
-        for ticker in ["SBERP03", "SELG-003D"]:
+        for ticker in ["SBERP03", "SELG-003D", "MAGN-002D"]:
             moexapi.get_ticker(ticker)
 
 
