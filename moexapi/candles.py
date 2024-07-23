@@ -71,10 +71,10 @@ def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
     j = 0
     result: list[Candle] = []
     while i < len(first) and j < len(second):
-        if first.end <= second.start:
+        if first[i].end <= second[j].start:
             result.append(first[i])
             i += 1
-        elif second.end <= first.start:
+        elif second[j].end <= first[i].start:
             result.append(second[j])
             j += 1
         else:
@@ -89,6 +89,8 @@ def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
 
 
 def _merge_candles_list(candles: list[list[Candle]]) -> list[Candle]:
+    if len(candles) == 0:
+        return []
     result = candles[0]
     for idx in range(1, len(candles)):
         result = _merge_candles(result, candles[idx])

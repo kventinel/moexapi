@@ -200,7 +200,7 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
             if len(securities) == 0:
                 break
             for line in securities:
-                if line[BOARDID] in child_market.boards:
+                if len(child_market.boards) == 0 or line[BOARDID] in child_market.boards:
                     tickers.add(Listing(secid=line[SECID], market=child_market, shortname=line[SHORTNAME]))
             idx += len(securities)
     return list(tickers)

@@ -5,16 +5,30 @@ import unittest
 import moexapi
 
 
+class Tickers(unittest.TestCase):
+    def test_shares(self):
+        for ticker in ["SBERP03", "SELG-003D"]:
+            moexapi.get_ticker(ticker)
+
+
 class Candles(unittest.TestCase):
     def test_index(self):
         ticker = moexapi.get_ticker("IMOEX")
-        candles = moexapi.get_candles(ticker)
-        history = moexapi.get_history(ticker)
+        candles = moexapi.get_candles(
+            ticker,
+            start_date=datetime.date(2023, 1, 1),
+            end_date=datetime.date(2023, 1, 31),
+        )
+        history = moexapi.get_history(
+            ticker,
+            start_date=datetime.date(2023, 1, 1),
+            end_date=datetime.date(2023, 1, 31),
+        )
         self.assertGreater(len(candles), 0)
         self.assertGreater(len(history), 0)
 
     def test_share(self):
-        for ticker in ["GAZP", "SBERP", "SBERP03"]:
+        for ticker in ["GAZP", "SBERP"]:
             ticker = moexapi.get_ticker(ticker)
             candles = moexapi.get_candles(
                 ticker,
@@ -31,8 +45,16 @@ class Candles(unittest.TestCase):
 
     def test_currency(self):
         ticker = moexapi.get_ticker("CNY")
-        candles = moexapi.get_candles(ticker)
-        history = moexapi.get_history(ticker)
+        candles = moexapi.get_candles(
+            ticker,
+            start_date=datetime.date(2023, 1, 1),
+            end_date=datetime.date(2023, 1, 31),
+        )
+        history = moexapi.get_history(
+            ticker,
+            start_date=datetime.date(2023, 1, 1),
+            end_date=datetime.date(2023, 1, 31),
+        )
         self.assertGreater(len(candles), 0)
         self.assertGreater(len(history), 0)
 
