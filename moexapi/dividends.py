@@ -11,7 +11,6 @@ from . import utils
 class Dividend:
     date: datetime.date
     value: float
-    part: float
 
 
 Dividends = list[Dividend]
@@ -26,10 +25,7 @@ def _get_dividends_for_one_ticker(ticker: tickers.Ticker):
         date = datetime.date.fromisoformat(line[columns.index('registryclosedate')])
         if date > datetime.date.today():
             continue
-        value = line[columns.index('value')]
-        price = history.get_history(ticker, start_date=date, end_date=date + datetime.timedelta(days=5))
-        assert len(price) >= 1, f"{ticker}, {date}"
-        dividends.append(Dividend(date=date, value=value, part=value / price[0].close))
+        dividends.append(Dividend(date=date, value=line[columns.index('value')]))
     return dividends
 
 
