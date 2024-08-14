@@ -28,6 +28,15 @@ VALTODAY = "VALTODAY"
 IS_TRADED = "is_traded"
 
 
+class NotFindTicker(RuntimeError):
+    def __init__(self, ticker, candidates):
+        self.ticker = ticker
+        self.candidates = candidates
+
+    def __repr__(self):
+        return f"Can't find ticker {self.ticker}, because of {self.candidates} candidates"
+
+
 @dataclasses.dataclass
 class Listing:
     secid: str
@@ -158,7 +167,8 @@ class Ticker:
                     ticker for ticker in parsed_tickers
                     if ticker.shortname == cur_secid and market.has(markets.Markets.CURRENCY)
                 ]
-        assert len(tickers) == 1, f"Can't find ticker {secid}, len(tickers) == {len(tickers)}"
+        if len(tickers) != 1:
+            raise NotFindTicker(secid, len(tickers))
         result = cls.from_listing(tickers[0])
         result.alias = secid
         return result

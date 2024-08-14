@@ -5,6 +5,9 @@ from . import tickers
 from . import utils
 
 
+logger = utils.initialize_logging(__file__)
+
+
 @dataclasses.dataclass
 class Changeover:
     date: datetime.date
@@ -41,7 +44,10 @@ def get_prev_tickers(ticker: tickers.Ticker) -> list[tickers.Ticker]:
     result = [ticker]
     for line in changeovers:
         if line.new_secid == result[-1].secid:
-            result.insert(0, tickers.get_ticker(line.old_secid, market=ticker.market))
+            try:
+                result.insert(0, tickers.get_ticker(line.old_secid, market=ticker.market))
+            except tickers.NotFindTicker as ex:
+                logger.warning(f"Can't find old version {ex.ticker} for {ticker}")
     return result
 
 

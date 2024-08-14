@@ -28,7 +28,7 @@ class Candles(unittest.TestCase):
         self.assertGreater(len(history), 0)
 
     def test_share(self):
-        for ticker in ["GAZP", "SBERP"]:
+        for ticker in ["GAZP", "SBERP", "MSRS"]:
             ticker = moexapi.get_ticker(ticker)
             candles = moexapi.get_candles(
                 ticker,
