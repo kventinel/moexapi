@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 
 from . import changeover
-from . import history
+from . import splits
 from . import tickers
 from . import utils
 
@@ -35,4 +35,9 @@ def get_dividends(ticker: tickers.Ticker) -> Dividends:
     dividends = []
     for ticker in prev_tickers:
         dividends.extend(_get_dividends_for_one_ticker(ticker))
+    ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
+    for split in ticker_splits:
+        for dividend in dividends:
+            if dividend.date < split.date:
+                dividend.value /= split.mult
     return dividends
