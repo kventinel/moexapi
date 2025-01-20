@@ -42,13 +42,14 @@ class Offer:
 @dataclasses.dataclass(init=True)
 class Bond:
     secid: str
+    name: str
     shortname: str
     issue_date: datetime.date
-    mat_date: datetime.date
+    mat_date: T.Optional[datetime.date]
     initial_face_value: float
     start_date_moex: datetime.date
     early_repayment: bool
-    days_to_redemption: int
+    days_to_redemption: T.Optional[int]
     issue_size: int
     face_value: float
     is_qualified_investors: bool
@@ -63,17 +64,18 @@ class Bond:
         self.secid = ticker.secid
         self.shortname = ticker.shortname
         ticker_info = tickers.get_ticker_info_dict(ticker.secid)
+        self.name = ticker_info["NAME"]
         self.issue_date = datetime.date.fromisoformat(ticker_info["ISSUEDATE"])
-        self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"])
+        self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"]) if "MATDATE" in ticker_info else None
         self.initial_face_value = float(ticker_info["INITIALFACEVALUE"])
         self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"])
         self.early_repayment = bool(ticker_info.get("EARLYREPAYMENT", False))
-        self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"])
+        self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"]) if "DAYSTOREDEMPTION" in ticker_info else None
         self.issue_size = int(ticker_info["ISSUESIZE"])
         self.face_value = float(ticker_info["FACEVALUE"])
         self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
         self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
-        self.evening_session = bool(ticker_info["EVENINGSESSION"])
+        self.evening_session = bool(ticker_info.get("EVENINGSESSION", False))
         self.coupon_percent = float(ticker_info["COUPONFREQUENCY"])
         self.amortization = []
         self.coupons = []
