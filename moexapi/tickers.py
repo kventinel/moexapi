@@ -107,6 +107,15 @@ class TickerBoardInfo:
         return result
 
 
+def get_ticker_info_dict(secid: str) -> dict[str, str]:
+    response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
+    description_columns, description_data = response["description"]["columns"], response["description"]["data"]
+    return {
+        line[description_columns.index("name")]: line[description_columns.index("value")]
+        for line in description_data
+    }
+
+
 @dataclasses.dataclass
 class TickerInfo:
     is_traded: bool
@@ -118,16 +127,12 @@ class TickerInfo:
     @classmethod
     def from_secid(cls, secid: str, market: markets.Market) -> "TickerInfo":
         response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
-        description_columns, description_data = response["description"]["columns"], response["description"]["data"]
-        description = {
-            line[description_columns.index("name")]: line[description_columns.index("value")]
-            for line in description_data
-        }
         boards = utils.prepare_dict(response, "boards")
         is_traded = False
         for line in boards:
             if not market.boards or line[BOARDID.lower()] in market.boards and line[IS_TRADED] == 1:
                 is_traded = True
+        description = get_ticker_info_dict(secid)
         return cls(
             shortname=description.get(SHORTNAME),
             isin=description.get(ISIN),
@@ -151,7 +156,6 @@ class Ticker:
     raw_price: T.Optional[float] = None
     price: T.Optional[float] = None
     accumulated_coupon: T.Optional[float] = None
-    listlevel: T.Optional[int] = None
     value: T.Optional[float] = None
 
     @classmethod

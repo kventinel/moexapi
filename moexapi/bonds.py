@@ -43,6 +43,18 @@ class Offer:
 class Bond:
     secid: str
     shortname: str
+    issue_date: datetime.date
+    mat_date: datetime.date
+    initial_face_value: float
+    start_date_moex: datetime.date
+    early_repayment: bool
+    days_to_redemption: int
+    issue_size: int
+    face_value: float
+    is_qualified_investors: bool
+    coupon_frequency: int
+    evening_session: bool
+    coupon_percent: float
     amortization: list[Amortization]
     coupons: list[Coupon]
     offers: list[Offer]
@@ -50,6 +62,19 @@ class Bond:
     def __init__(self, ticker: tickers.Ticker):
         self.secid = ticker.secid
         self.shortname = ticker.shortname
+        ticker_info = tickers.get_ticker_info_dict(ticker.secid)
+        self.issue_date = datetime.date.fromisoformat(ticker_info["ISSUEDATE"])
+        self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"])
+        self.initial_face_value = float(ticker_info["INITIALFACEVALUE"])
+        self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"])
+        self.early_repayment = bool(ticker_info.get("EARLYREPAYMENT", False))
+        self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"])
+        self.issue_size = int(ticker_info["ISSUESIZE"])
+        self.face_value = float(ticker_info["FACEVALUE"])
+        self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
+        self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
+        self.evening_session = bool(ticker_info["EVENINGSESSION"])
+        self.coupon_percent = float(ticker_info["COUPONFREQUENCY"])
         self.amortization = []
         self.coupons = []
         self.offers = []
