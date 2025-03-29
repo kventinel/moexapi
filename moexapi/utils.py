@@ -14,7 +14,7 @@ _CACHED_TABLE = collections.OrderedDict()
 
 def initialize_logging(name: str) -> logging.Logger:
     log = logging.getLogger(name)
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
     _stream_handler = logging.StreamHandler()
     _stream_handler.setLevel(logging.DEBUG)
     _stream_handler.setFormatter(logging.Formatter(

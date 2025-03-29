@@ -26,8 +26,15 @@ FACEVALUEONSETTLEDATE = "FACEVALUEONSETTLEDATE"
 FACEUNIT = "FACEUNIT"
 ACCRUEDINT = "ACCRUEDINT"
 VALTODAY = "VALTODAY"
+CURRENCY = "CURRENCYID"
 IS_TRADED = "is_traded"
 HISTORY_TILL = "history_till"
+
+
+def _sur_to_rub(currency: T.Optional[str]) -> T.Optional[str]:
+    if currency == "SUR":
+        return "RUB"
+    return currency
 
 
 class NotFindTicker(RuntimeError):
@@ -53,8 +60,10 @@ class Listing:
 @dataclasses.dataclass
 class TickerBoardInfo:
     boards: list[str]
+    currency: str
     raw_price: T.Optional[float]
     price: T.Optional[float]
+    price_in_rub: T.Optional[float]
     accumulated_coupon: float
     listlevel: T.Optional[int]
     value: T.Optional[float]
@@ -86,18 +95,27 @@ class TickerBoardInfo:
             lotvalue = sec_line.get(FACEVALUEONSETTLEDATE)
             if lotvalue is None:
                 lotvalue = sec_line.get(LOTVALUE)
-            unit = sec_line.get(FACEUNIT, "RUB")
-            if lotvalue is not None and unit not in ["RUB", "SUR"]:
-                lotvalue *= exchange.get_rate(unit)
+            currency = _sur_to_rub(sec_line.get(FACEUNIT, "RUB"))
+            rate = 1
             price = raw_price
+            if currency != "RUB" and market != markets.Markets.CURRENCY and price is not None:
+                rate = exchange.get_rate(currency)
             if price is not None:
                 if lotvalue is not None:
                     price *= lotvalue / 100
-                price += accumulated_coupon
+                if accumulated_coupon:
+                    coupon_currency = _sur_to_rub(sec_line[CURRENCY])
+                    if coupon_currency is not None and coupon_currency != currency:
+                        assert coupon_currency == "RUB"
+                        accumulated_coupon /= rate
+                    price += accumulated_coupon
+            price_in_rub = price * rate if price is not None else None
             result = cls(
                 boards=[board],
+                currency=currency,
                 raw_price=raw_price,
                 price=price,
+                price_in_rub=price_in_rub,
                 accumulated_coupon=accumulated_coupon,
                 listlevel=sec_line.get(LISTLEVEL),
                 value=market_line[VALTODAY],
@@ -153,8 +171,10 @@ class Ticker:
     subtype: T.Optional[str]
     listlevel: T.Optional[int]
     boards: list[str] = dataclasses.field(default_factory=lambda: [])
+    currency: T.Optional[str] = None
     raw_price: T.Optional[float] = None
     price: T.Optional[float] = None
+    price_in_rub: T.Optional[float] = None
     accumulated_coupon: T.Optional[float] = None
     value: T.Optional[float] = None
 
