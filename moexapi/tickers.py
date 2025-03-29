@@ -95,7 +95,10 @@ class TickerBoardInfo:
             lotvalue = sec_line.get(FACEVALUEONSETTLEDATE)
             if lotvalue is None:
                 lotvalue = sec_line.get(LOTVALUE)
-            currency = _sur_to_rub(sec_line.get(FACEUNIT, "RUB"))
+            if lotvalue is not None:
+                currency = _sur_to_rub(sec_line.get(FACEUNIT, "RUB"))
+            else:
+                currency = _sur_to_rub(sec_line.get(CURRENCY, "RUB"))
             rate = 1
             price = raw_price
             if currency != "RUB" and market != markets.Markets.CURRENCY and price is not None:
