@@ -5,10 +5,23 @@ import requests
 
 from . import markets
 from . import tickers
+from . import utils
 
 
 def get_moex_rate(currency: str) -> T.Optional[float]:
     return tickers.get_ticker(currency, market=markets.Markets.CURRENCY).price
+
+
+def get_moex_usd_eur_rate(currency: str) -> T.Optional[float]:
+    response = utils.prepare_dict(
+        utils.json_api_call("https://iss.moex.com/iss/statistics/engines/currency/markets/selt/rates.json"),
+        "cbrf"
+    )[0]
+    if currency == "USD":
+        return response["CBRF_USD_LAST"]
+    if currency == "EUR":
+        return response["CBRF_EUR_LAST"]
+    raise RuntimeError(f"Unknown currency {currency}")
 
 
 def get_cbrf_rate(currency: str) -> float:
@@ -35,7 +48,10 @@ def get_cbrf_rate(currency: str) -> float:
 
 
 def get_rate(currency: str) -> float:
-    moex_rate = get_moex_rate(currency)
+    if currency in ["USD", "EUR"]:
+        moex_rate = get_moex_usd_eur_rate(currency)
+    else:
+        moex_rate = get_moex_rate(currency)
     if moex_rate is not None:
         return moex_rate
     return get_cbrf_rate(currency)
