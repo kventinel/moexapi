@@ -57,5 +57,5 @@ def get_current_ticker(ticker: tickers.Ticker) -> tickers.Ticker:
         if ticker.secid == line.old_secid:
             ticker = tickers.get_ticker(line.new_secid, market=ticker.market)
     if ticker.secid in ["RSTI", "RSTIP"]:
-        ticker.get_ticker("FEES", market=ticker.market)
+        tickers.get_ticker("FEES", market=ticker.market)
     return ticker
