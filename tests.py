@@ -78,13 +78,24 @@ class Dividends(unittest.TestCase):
 
 class Bonds(unittest.TestCase):
     def test_bonds(self):
-        ofz29013 = moexapi.Bond(moexapi.get_ticker('ОФЗ29013'))
+        ofz29013 = moexapi.Bond(moexapi.get_ticker("ОФЗ29013"))
         self.assertEqual(ofz29013.issue_date, datetime.date(2020, 4, 8))
         self.assertEqual(ofz29013.mat_date, datetime.date(2030, 9, 18))
         self.assertEqual(ofz29013.early_repayment, True)
         self.assertEqual(ofz29013.evening_session, True)
         self.assertAlmostEqual(ofz29013.coupon_percent, 4.0)
         self.assertEqual(ofz29013.coupon_frequency, 4)
+
+
+class Splits(unittest.TestCase):
+    def test_splits(self):
+        ticker = moexapi.get_ticker("RSHU")
+        splits = moexapi.get_ticker_splits(ticker)
+        self.assertEqual(len(splits), 1)
+        split = splits[0]
+        self.assertEqual(split.date, datetime.date(2021, 4, 12))
+        self.assertEqual(split.secid, "VTBU")
+        self.assertAlmostEqual(split.mult, 40.0)
 
 
 if __name__ == '__main__':
