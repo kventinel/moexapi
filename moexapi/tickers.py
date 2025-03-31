@@ -101,7 +101,7 @@ class TickerBoardInfo:
                 currency = _sur_to_rub(sec_line.get(CURRENCY, "RUB"))
             rate = 1
             price = raw_price
-            if currency != "RUB" and market != markets.Markets.CURRENCY and price is not None:
+            if currency is not None and currency != "RUB" and market != markets.Markets.CURRENCY and price is not None:
                 rate = exchange.get_rate(currency)
             if price is not None:
                 if lotvalue is not None:
