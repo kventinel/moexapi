@@ -47,7 +47,7 @@ class Bond:
     issue_date: datetime.date
     mat_date: T.Optional[datetime.date]
     initial_face_value: float
-    start_date_moex: datetime.date
+    start_date_moex: T.Optional[datetime.date]
     early_repayment: bool
     days_to_redemption: T.Optional[int]
     issue_size: int
@@ -55,7 +55,7 @@ class Bond:
     is_qualified_investors: bool
     coupon_frequency: int
     evening_session: bool
-    coupon_percent: float
+    coupon_percent: T.Optional[float]
     amortization: list[Amortization]
     coupons: list[Coupon]
     offers: list[Offer]
@@ -68,7 +68,8 @@ class Bond:
         self.issue_date = datetime.date.fromisoformat(ticker_info["ISSUEDATE"])
         self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"]) if "MATDATE" in ticker_info else None
         self.initial_face_value = float(ticker_info["INITIALFACEVALUE"])
-        self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"])
+        self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"]) \
+            if "STARTDATEMOEX" in ticker_info else None
         self.early_repayment = bool(ticker_info.get("EARLYREPAYMENT", False))
         self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"]) if "DAYSTOREDEMPTION" in ticker_info else None
         self.issue_size = int(ticker_info["ISSUESIZE"])
@@ -76,7 +77,7 @@ class Bond:
         self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
         self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
         self.evening_session = bool(ticker_info.get("EVENINGSESSION", False))
-        self.coupon_percent = float(ticker_info["COUPONFREQUENCY"])
+        self.coupon_percent = float(ticker_info["COUPONPERCENT"]) if "COUPONPERCENT" in ticker_info else None
         self.amortization = []
         self.coupons = []
         self.offers = []
