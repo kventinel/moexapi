@@ -64,6 +64,11 @@ class Market:
     def path(self) -> str:
         assert len(self.engines) == 1 and len(self.markets) == 1
         return f"/engines/{list(self.engines)[0]}/markets/{list(self.markets)[0]}"
+    
+    @property
+    def query(self) -> str:
+        assert len(self.engines) == 1 and len(self.markets) == 1
+        return f"engine={list(self.engines)[0]}&market={list(self.markets)[0]}"
 
     def __str__(self) -> str:
         return self._name
@@ -88,8 +93,8 @@ class Market:
 _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
 _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
-_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR", "EQNE", "EQNL"})
-_ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF"})
+_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR", "EQNE", "EQNL", "EQBS"})
+_ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF", "TQTD"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
 _FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})
 _COMPANY_BONDS = Market("company bonds", parent=_BONDS, boards={"TQCB"})

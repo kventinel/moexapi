@@ -28,7 +28,6 @@ ACCRUEDINT = "ACCRUEDINT"
 VALTODAY = "VALTODAY"
 CURRENCY = "CURRENCYID"
 IS_TRADED = "is_traded"
-HISTORY_TILL = "history_till"
 
 
 def _sur_to_rub(currency: T.Optional[str]) -> T.Optional[str]:
@@ -51,7 +50,7 @@ class Listing:
     secid: str
     market: markets.Market
     shortname: str
-    history_till: datetime.date
+    isin: str
 
     def __hash__(self):
         return hash(self.secid) + hash(self.market)
@@ -187,6 +186,8 @@ class Ticker:
         tickers = [ticker for ticker in parsed_tickers if ticker.secid == secid]
         if len(tickers) == 0:
             tickers = [ticker for ticker in parsed_tickers if ticker.shortname.replace(' ', '') == secid]
+        if len(tickers) == 0:
+            tickers = [ticker for ticker in parsed_tickers if ticker.isin == secid]
         if len(tickers) == 0 and len(secid) == 3 and market.has(markets.Markets.CURRENCY):
             cur_secid = f"{secid}RUB_TOM"
             tickers = [
@@ -230,35 +231,28 @@ class Ticker:
 
 
 def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing]:
-    tickers: dict[str, list[Listing]] = collections.defaultdict(list)
+    tickers: dict[str, Listing] = {}
     for child_market in market.childs():
         idx = 0
         while True:
-            start = f"?start={idx}"
+            start = f"&start={idx}"
             response = utils.json_api_call(
-                f"https://iss.moex.com/iss/history{child_market.path}/listing.json{start}"
+                f"https://iss.moex.com/iss/securities.json?{child_market.query}{start}"
             )
             securities = utils.prepare_dict(response, "securities")
             if len(securities) == 0:
                 break
             for line in securities:
-                if (len(child_market.boards) == 0 or line[BOARDID] in child_market.boards) and line[HISTORY_TILL]:
-                    tickers[line[SECID]].append(
-                        Listing(
-                            secid=line[SECID],
-                            market=child_market,
-                            shortname=line[SHORTNAME],
-                            history_till=datetime.date.fromisoformat(line[HISTORY_TILL]),
-                        )
+                if (len(child_market.boards) == 0 or line["primary_boardid"] in child_market.boards):
+                    assert line["secid"] not in tickers
+                    tickers[line["secid"]] = Listing(
+                        secid=line["secid"],
+                        market=child_market,
+                        shortname=line["shortname"],
+                        isin=line["isin"],
                     )
             idx += len(securities)
-    result = []
-    for _, securities in tickers.items():
-        securities.sort(key=lambda x: x.history_till, reverse=True)
-        for security in securities[1:]:
-            assert security.history_till < securities[0].history_till or security.market == securities[0].market
-        result.append(securities[0])
-    return result
+    return list(tickers.values())
 
 
 def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL) -> Ticker:

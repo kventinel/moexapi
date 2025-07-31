@@ -10,6 +10,9 @@ class Tickers(unittest.TestCase):
         for ticker in ["SBERP03", "SELG-003D", "MAGN-002D"]:
             moexapi.get_ticker(ticker)
 
+    def test_isin(self):
+        moexapi.get_ticker("RU000A1039N1")
+
     def test_gold(self):
         self.assertEqual(moexapi.get_ticker("GOLD").currency, "RUB")
 
