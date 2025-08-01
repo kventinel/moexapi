@@ -16,6 +16,10 @@ class Tickers(unittest.TestCase):
         lkoh2 = moexapi.get_ticker("RU0009024277")
         self.assertEqual(lkoh1.isin, lkoh2.isin)
 
+    def test_etfs(self):
+        for ticker in ["CNYM"]:
+            moexapi.get_ticker(ticker)
+
     def test_gold(self):
         self.assertEqual(moexapi.get_ticker("GOLD").currency, "RUB")
 

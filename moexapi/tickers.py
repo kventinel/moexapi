@@ -51,6 +51,7 @@ class Listing:
     market: markets.Market
     shortname: str
     isin: T.Optional[str]
+    board: T.Optional[str]
 
     def __hash__(self):
         return hash(self.secid) + hash(self.market)
@@ -68,7 +69,7 @@ class TickerBoardInfo:
     value: T.Optional[float]
 
     @classmethod
-    def from_secid(cls, secid: str, market: markets.Market) -> T.Optional["TickerBoardInfo"]:
+    def from_secid(cls, secid: str, market: markets.Market, primary_board: str) -> T.Optional["TickerBoardInfo"]:
         response = utils.json_api_call(f"https://iss.moex.com/iss{market.path}/securities/{secid}.json")
         securities = utils.prepare_dict(response, "securities")
         marketdata = utils.prepare_dict(response, "marketdata")
@@ -77,7 +78,7 @@ class TickerBoardInfo:
         result = None
         for sec_line, market_line in zip(securities, marketdata):
             board = sec_line[BOARDID]
-            if market.boards and board not in market.boards:
+            if market.boards and board != primary_board:
                 boards.append(board)
                 continue
             else:
@@ -220,7 +221,7 @@ class Ticker:
             subtype=info.subtype,
             listlevel=info.listlevel,
         )
-        board_info = TickerBoardInfo.from_secid(listing.secid, listing.market)
+        board_info = TickerBoardInfo.from_secid(listing.secid, listing.market, listing.board)
         if board_info is not None:
             for key, value in dataclasses.asdict(board_info).items():
                 if getattr(result, key, None) is None or getattr(result, key, None) == []:
@@ -247,9 +248,16 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
                 if isin is None and child_market != markets.Markets.CURRENCY:
                     continue
                 secid = line["secid"]
-                if (len(child_market.boards) == 0 or line["primary_boardid"] in child_market.boards):
+                board = line["primary_boardid"]
+                if (len(child_market.boards) == 0 or board in child_market.boards):
                     assert secid not in tickers
-                    tickers[secid] = Listing(secid=secid, market=child_market, shortname=line["shortname"], isin=isin)
+                    tickers[secid] = Listing(
+                        secid=secid,
+                        market=child_market,
+                        shortname=line["shortname"],
+                        isin=isin,
+                        board=board,
+                    )
             idx += len(securities)
     return list(tickers.values())
 
