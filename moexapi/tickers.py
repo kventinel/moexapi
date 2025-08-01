@@ -50,7 +50,7 @@ class Listing:
     secid: str
     market: markets.Market
     shortname: str
-    isin: str
+    isin: T.Optional[str]
 
     def __hash__(self):
         return hash(self.secid) + hash(self.market)
@@ -243,14 +243,13 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
             if len(securities) == 0:
                 break
             for line in securities:
+                isin = line["isin"]
+                if isin is None and child_market != markets.Markets.CURRENCY:
+                    continue
+                secid = line["secid"]
                 if (len(child_market.boards) == 0 or line["primary_boardid"] in child_market.boards):
-                    assert line["secid"] not in tickers
-                    tickers[line["secid"]] = Listing(
-                        secid=line["secid"],
-                        market=child_market,
-                        shortname=line["shortname"],
-                        isin=line["isin"],
-                    )
+                    assert secid not in tickers
+                    tickers[secid] = Listing(secid=secid, market=child_market, shortname=line["shortname"], isin=isin)
             idx += len(securities)
     return list(tickers.values())
 

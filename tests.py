@@ -12,6 +12,9 @@ class Tickers(unittest.TestCase):
 
     def test_isin(self):
         moexapi.get_ticker("RU000A1039N1")
+        lkoh1 = moexapi.get_ticker("LKOH")
+        lkoh2 = moexapi.get_ticker("RU0009024277")
+        self.assertEqual(lkoh1.isin, lkoh2.isin)
 
     def test_gold(self):
         self.assertEqual(moexapi.get_ticker("GOLD").currency, "RUB")
