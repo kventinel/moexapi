@@ -23,6 +23,9 @@ class Tickers(unittest.TestCase):
     def test_gold(self):
         self.assertEqual(moexapi.get_ticker("GOLD").currency, "RUB")
 
+    def test_old(self):
+        self.assertEqual(moexapi.get_ticker("RU0009029540").secid, "SBER")
+
 
 class Candles(unittest.TestCase):
     def test_index(self):

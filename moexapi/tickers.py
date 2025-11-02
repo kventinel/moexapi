@@ -182,32 +182,6 @@ class Ticker:
     value: T.Optional[float] = None
 
     @classmethod
-    def from_secid(cls, secid: str, market: markets.Market = markets.Markets.ALL) -> "Ticker":
-        parsed_tickers = _parse_tickers(market=market)
-        tickers = [ticker for ticker in parsed_tickers if ticker.secid == secid]
-        if len(tickers) == 0:
-            tickers = [ticker for ticker in parsed_tickers if ticker.shortname.replace(' ', '') == secid]
-        if len(tickers) == 0:
-            tickers = [ticker for ticker in parsed_tickers if ticker.isin == secid]
-        if len(tickers) == 0 and len(secid) == 3 and market.has(markets.Markets.CURRENCY):
-            cur_secid = f"{secid}RUB_TOM"
-            tickers = [
-                ticker for ticker in parsed_tickers if ticker.secid == cur_secid and market.has(markets.Markets.CURRENCY)
-            ]
-            if len(tickers) == 0:
-                tickers = [
-                    ticker for ticker in parsed_tickers
-                    if ticker.shortname == cur_secid and market.has(markets.Markets.CURRENCY)
-                ]
-        if len(tickers) != 1:
-            if len(tickers) > 1:
-                logger.error(f'Find too many tickers for {secid}: {tickers}')
-            raise NotFindTicker(secid, len(tickers))
-        result = cls.from_listing(tickers[0])
-        result.alias = secid
-        return result
-
-    @classmethod
     def from_listing(cls, listing: Listing) -> "Ticker":
         info = TickerInfo.from_secid(listing.secid, listing.market)
         assert info.shortname is None or listing.shortname == info.shortname
@@ -229,6 +203,40 @@ class Ticker:
                 elif getattr(result, key) != value:
                     logger.warning(f"{getattr(result, key)} vs {value} for {key} (use first)")
         return result
+
+    @classmethod
+    def from_secid(cls, secid: str, market: markets.Market = markets.Markets.ALL) -> "Ticker":
+        parsed_tickers = _parse_tickers(market=market)
+        tickers = [cls.from_listing(ticker) for ticker in parsed_tickers if ticker.secid == secid]
+        if len([ticker for ticker in tickers if ticker.is_traded]) == 0:
+            tickers.extend([
+                cls.from_listing(ticker) for ticker in parsed_tickers if ticker.shortname.replace(' ', '') == secid
+            ])
+        if len([ticker for ticker in tickers if ticker.is_traded]) == 0:
+            tickers.extend([cls.from_listing(ticker) for ticker in parsed_tickers if ticker.isin == secid])
+        if (
+            len([ticker for ticker in tickers if ticker.is_traded]) == 0 and
+            len(secid) == 3 and
+            market.has(markets.Markets.CURRENCY)
+        ):
+            cur_secid = f"{secid}RUB_TOM"
+            tickers.extend([
+                cls.from_listing(ticker)
+                for ticker in parsed_tickers if ticker.secid == cur_secid and market.has(markets.Markets.CURRENCY)
+            ])
+            if len([ticker for ticker in tickers if ticker.is_traded]) == 0:
+                tickers.extend([
+                    cls.from_listing(ticker) for ticker in parsed_tickers
+                    if ticker.shortname == cur_secid and market.has(markets.Markets.CURRENCY)
+                ])
+        if len(tickers) > 1 and len([ticker for ticker in tickers if ticker.is_traded]) != 0:
+            tickers = [ticker for ticker in tickers if ticker.is_traded]
+        if len(tickers) != 1:
+            if len(tickers) > 1:
+                logger.error(f'Find too many tickers for {secid}: {tickers}')
+            raise NotFindTicker(secid, len(tickers))
+        tickers[0].alias = secid
+        return tickers[0]
 
 
 def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing]:
