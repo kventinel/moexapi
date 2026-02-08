@@ -28,6 +28,7 @@ ACCRUEDINT = "ACCRUEDINT"
 VALTODAY = "VALTODAY"
 CURRENCY = "CURRENCYID"
 IS_TRADED = "is_traded"
+LISTED_TILL = "listed_till"
 
 
 def _sur_to_rub(currency: T.Optional[str]) -> T.Optional[str]:
@@ -145,22 +146,29 @@ class TickerInfo:
     isin: T.Optional[str]
     subtype: T.Optional[str]
     listlevel: T.Optional[int]
+    listed_till: T.Optional[datetime.date] = None
 
     @classmethod
     def from_secid(cls, secid: str, market: markets.Market) -> "TickerInfo":
         response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
         boards = utils.prepare_dict(response, "boards")
         is_traded = False
+        listed_till = datetime.date.min
         for line in boards:
             if not market.boards or line[BOARDID.lower()] in market.boards and line[IS_TRADED] == 1:
                 is_traded = True
+            if line[LISTED_TILL] is not None and listed_till is not None:
+                listed_till = max(listed_till, datetime.date.fromisoformat(line[LISTED_TILL]))
+            else:
+                listed_till = None
         description = get_ticker_info_dict(secid)
         return cls(
             shortname=description.get(SHORTNAME),
             isin=description.get(ISIN),
             subtype=description.get(SECSUBTYPE),
             listlevel=int(description[LISTLEVEL]) if LISTLEVEL in description else None,
-            is_traded=is_traded
+            is_traded=is_traded,
+            listed_till=listed_till,
         )
 
 
@@ -181,7 +189,7 @@ class Ticker:
     price_in_rub: T.Optional[float] = None
     accumulated_coupon: T.Optional[float] = None
     value: T.Optional[float] = None
-
+    listed_till: T.Optional[datetime.date] = None
     @classmethod
     def from_listing(cls, listing: Listing) -> "Ticker":
         info = TickerInfo.from_secid(listing.secid, listing.market)
@@ -195,6 +203,7 @@ class Ticker:
             isin=info.isin,
             subtype=info.subtype,
             listlevel=info.listlevel,
+            listed_till=info.listed_till,
         )
         board_info = TickerBoardInfo.from_secid(listing.secid, listing.market, listing.board)
         if board_info is not None:
@@ -238,6 +247,11 @@ class Ticker:
                 if ticker not in unique_tickers:
                     unique_tickers.append(ticker)
             tickers = unique_tickers
+        if len(tickers) > 1 and any(ticker.listed_till is None for ticker in tickers):
+            tickers = [ticker for ticker in tickers if ticker.listed_till is None]
+        if len(tickers) > 1:
+            max_listed_till = max(ticker.listed_till for ticker in tickers)
+            tickers = [ticker for ticker in tickers if ticker.listed_till == max_listed_till]
         if len(tickers) != 1:
             if len(tickers) > 1:
                 logger.error(f'Find too many tickers for {secid}: {tickers}')
