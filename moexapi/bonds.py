@@ -61,64 +61,67 @@ class Bond:
     offers: list[Offer]
 
     def __init__(self, ticker: tickers.Ticker):
-        self.secid = ticker.secid
-        self.shortname = ticker.shortname
-        ticker_info = tickers.get_ticker_info_dict(ticker.secid)
-        self.name = ticker_info["NAME"]
-        self.issue_date = datetime.date.fromisoformat(ticker_info["ISSUEDATE"])
-        self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"]) if "MATDATE" in ticker_info else None
-        self.initial_face_value = float(ticker_info["INITIALFACEVALUE"])
-        self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"]) \
-            if "STARTDATEMOEX" in ticker_info else None
-        self.early_repayment = bool(ticker_info.get("EARLYREPAYMENT", False))
-        self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"]) if "DAYSTOREDEMPTION" in ticker_info else None
-        self.issue_size = int(ticker_info["ISSUESIZE"])
-        self.face_value = float(ticker_info["FACEVALUE"])
-        self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
-        self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
-        self.evening_session = bool(ticker_info.get("EVENINGSESSION", False))
-        self.coupon_percent = float(ticker_info["COUPONPERCENT"]) if "COUPONPERCENT" in ticker_info else None
-        self.amortization = []
-        self.coupons = []
-        self.offers = []
-        limit = 100
-        start_date: T.Optional[datetime.date] = None
-        while True:
-            start_str = f"&from={start_date.isoformat()}" if start_date else ""
-            response = utils.json_api_call(
-                f"https://iss.moex.com/iss/securities/{ticker.secid}/bondization.json?limit={limit}{start_str}"
-            )
-            amortization = utils.prepare_dict(response, "amortizations")
-            coupons = utils.prepare_dict(response, "coupons")
-            offers = utils.prepare_dict(response, "offers")
-            end_date = None
-            for line in amortization:
-                date = datetime.date.fromisoformat(line["amortdate"])
-                end_date = _max(end_date, date)
-                self.amortization.append(
-                    Amortization(date=date, value=line["value"], initialfacevalue=line["initialfacevalue"])
+        try:
+            self.secid = ticker.secid
+            self.shortname = ticker.shortname
+            ticker_info = tickers.get_ticker_info_dict(ticker.secid)
+            self.name = ticker_info["NAME"]
+            self.issue_date = datetime.date.fromisoformat(ticker_info["ISSUEDATE"])
+            self.mat_date = datetime.date.fromisoformat(ticker_info["MATDATE"]) if "MATDATE" in ticker_info else None
+            self.initial_face_value = float(ticker_info["INITIALFACEVALUE"])
+            self.start_date_moex = datetime.date.fromisoformat(ticker_info["STARTDATEMOEX"]) \
+                if "STARTDATEMOEX" in ticker_info else None
+            self.early_repayment = bool(ticker_info.get("EARLYREPAYMENT", False))
+            self.days_to_redemption = int(ticker_info["DAYSTOREDEMPTION"]) if "DAYSTOREDEMPTION" in ticker_info else None
+            self.issue_size = int(ticker_info["ISSUESIZE"])
+            self.face_value = float(ticker_info["FACEVALUE"])
+            self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
+            self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
+            self.evening_session = bool(ticker_info.get("EVENINGSESSION", False))
+            self.coupon_percent = float(ticker_info["COUPONPERCENT"]) if "COUPONPERCENT" in ticker_info else None
+            self.amortization = []
+            self.coupons = []
+            self.offers = []
+            limit = 100
+            start_date: T.Optional[datetime.date] = None
+            while True:
+                start_str = f"&from={start_date.isoformat()}" if start_date else ""
+                response = utils.json_api_call(
+                    f"https://iss.moex.com/iss/securities/{ticker.secid}/bondization.json?limit={limit}{start_str}"
                 )
-            for line in coupons:
-                date = datetime.date.fromisoformat(line["coupondate"])
-                end_date = _max(end_date, date)
-                self.coupons.append(
-                    Coupon(
-                        date=date,
-                        start_date=datetime.date.fromisoformat(line["startdate"]),
-                        value=line["value"],
-                        initialfacevalue=line["initialfacevalue"],
+                amortization = utils.prepare_dict(response, "amortizations")
+                coupons = utils.prepare_dict(response, "coupons")
+                offers = utils.prepare_dict(response, "offers")
+                end_date = None
+                for line in amortization:
+                    date = datetime.date.fromisoformat(line["amortdate"])
+                    end_date = _max(end_date, date)
+                    self.amortization.append(
+                        Amortization(date=date, value=line["value"], initialfacevalue=line["initialfacevalue"])
                     )
-                )
-            for line in offers:
-                date = datetime.date.fromisoformat(line["offerdate"])
-                end_date = _max(end_date, date)
-                self.offers.append(Offer(date=date, value=line["value"]))
-            if end_date == start_date:
-                break
-            start_date = end_date
-            self.amortization = [item for item in self.amortization if item.date != start_date]
-            self.coupons = [item for item in self.coupons if item.date != start_date]
-            self.offers = [item for item in self.offers if item.date != start_date]
+                for line in coupons:
+                    date = datetime.date.fromisoformat(line["coupondate"])
+                    end_date = _max(end_date, date)
+                    self.coupons.append(
+                        Coupon(
+                            date=date,
+                            start_date=datetime.date.fromisoformat(line["startdate"]),
+                            value=line["value"],
+                            initialfacevalue=line["initialfacevalue"],
+                        )
+                    )
+                for line in offers:
+                    date = datetime.date.fromisoformat(line["offerdate"])
+                    end_date = _max(end_date, date)
+                    self.offers.append(Offer(date=date, value=line["value"]))
+                if end_date == start_date:
+                    break
+                start_date = end_date
+                self.amortization = [item for item in self.amortization if item.date != start_date]
+                self.coupons = [item for item in self.coupons if item.date != start_date]
+                self.offers = [item for item in self.offers if item.date != start_date]
+        except Exception as e:
+            raise type(e)(f"{ticker.secid} ({ticker.shortname}): {e}") from e
 
     @property
     def expiration_date(self) -> datetime.date:
