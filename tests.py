@@ -10,6 +10,9 @@ class Tickers(unittest.TestCase):
         for ticker in ["SBERP03", "SELG-003D", "MAGN-002D"]:
             moexapi.get_ticker(ticker)
 
+    def test_bonds(self):
+        moexapi.get_ticker(secid='RU000A0JXYA7', market=moexapi.Markets.BONDS)
+
     def test_isin(self):
         moexapi.get_ticker("RU000A1039N1")
         lkoh1 = moexapi.get_ticker("LKOH")

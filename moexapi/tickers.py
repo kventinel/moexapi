@@ -232,6 +232,12 @@ class Ticker:
                 ])
         if len(tickers) > 1 and len([ticker for ticker in tickers if ticker.is_traded]) != 0:
             tickers = [ticker for ticker in tickers if ticker.is_traded]
+        if len(tickers) > 1:
+            unique_tickers = []
+            for ticker in tickers:
+                if ticker not in unique_tickers:
+                    unique_tickers.append(ticker)
+            tickers = unique_tickers
         if len(tickers) != 1:
             if len(tickers) > 1:
                 logger.error(f'Find too many tickers for {secid}: {tickers}')
