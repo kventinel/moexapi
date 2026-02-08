@@ -52,6 +52,7 @@ class Listing:
     shortname: str
     isin: T.Optional[str]
     board: T.Optional[str]
+    is_traded: bool
 
     def __hash__(self):
         return hash(self.secid) + hash(self.market)
@@ -265,6 +266,7 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
                         shortname=line["shortname"],
                         isin=isin,
                         board=board,
+                        is_traded=line["is_traded"],
                     )
             idx += len(securities)
     return list(tickers.values())
@@ -274,11 +276,17 @@ def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL) -> Tick
     return Ticker.from_secid(secid, market=market)
 
 
-def get_tickers(market: markets.Market = markets.Markets.ALL, limit: int = None) -> list[Ticker]:
+def get_tickers(
+    market: markets.Market = markets.Markets.ALL,
+    is_traded: T.Optional[bool] = None,
+    limit: int = None
+) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
     result = []
-    for idx, ticker in enumerate(tickers):
-        if limit is not None and idx >= limit:
+    for ticker in tickers:
+        if limit is not None and len(result) >= limit:
             break
+        if is_traded is not None and ticker.is_traded != is_traded:
+            continue
         result.append(Ticker.from_secid(secid=ticker.secid, market=ticker.market))
     return result
