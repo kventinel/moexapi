@@ -7,6 +7,9 @@ from . import tickers
 from . import utils
 
 
+logger = utils.initialize_logging(__file__)
+
+
 def _max(first, second):
     if first is not None and second is not None:
         return max(first, second)
@@ -120,12 +123,56 @@ class Bond:
                 self.amortization = [item for item in self.amortization if item.date != start_date]
                 self.coupons = [item for item in self.coupons if item.date != start_date]
                 self.offers = [item for item in self.offers if item.date != start_date]
+            original_values = [item.value for item in self.amortization]
+            amortization_sum = sum(original_values)
+            if abs(amortization_sum - self.initial_face_value) > 1e-9:
+                values = [value / amortization_sum * self.initial_face_value for value in original_values]
+                rounded_values = [round(value + 1e-9, 2) for value in values]
+                for original_value, rounded_value in zip(original_values, rounded_values):
+                    if abs(original_value - rounded_value) > 1e-9:
+                        logger.error(f"Original value {original_value} is not equal to rounded value {rounded_value}")
+                        raise ValueError(f"Amortization sum {amortization_sum} is greater than initial face value {self.initial_face_value}")
+                for amortization_item, value in zip(self.amortization, values):
+                    amortization_item.value = value
         except Exception as e:
-            raise type(e)(f"{ticker.secid} ({ticker.shortname}): {e}") from e
+            logger.error(f"{ticker.secid} ({ticker.shortname}): {e}")
+            raise e
 
     @property
     def expiration_date(self) -> datetime.date:
         return max(item.date for item in self.amortization + self.coupons + self.offers)
+
+    def __repr__(self) -> str:
+        lines = [
+            f"Bond({self.secid})",
+            f"  name:                  {self.name}",
+            f"  shortname:             {self.shortname}",
+            f"  issue_date:            {self.issue_date}",
+            f"  mat_date:              {self.mat_date}",
+            f"  initial_face_value:    {self.initial_face_value}",
+            f"  face_value:            {self.face_value}",
+            f"  start_date_moex:       {self.start_date_moex}",
+            f"  early_repayment:       {self.early_repayment}",
+            f"  days_to_redemption:    {self.days_to_redemption}",
+            f"  issue_size:            {self.issue_size:,}",
+            f"  is_qualified_investors:{' ' if not self.is_qualified_investors else ''}{self.is_qualified_investors}",
+            f"  coupon_frequency:      {self.coupon_frequency}",
+            f"  evening_session:       {self.evening_session}",
+            f"  coupon_percent:        {self.coupon_percent}",
+        ]
+        if self.amortization:
+            lines.append(f"  amortization ({len(self.amortization)}):")
+            for a in self.amortization:
+                lines.append(f"    {a.date}  value={a.value}  face={a.initialfacevalue}")
+        if self.coupons:
+            lines.append(f"  coupons ({len(self.coupons)}):")
+            for c in self.coupons:
+                lines.append(f"    {c.date}  value={c.value}")
+        if self.offers:
+            lines.append(f"  offers ({len(self.offers)}):")
+            for o in self.offers:
+                lines.append(f"    {o.date}  value={o.value}")
+        return "\n".join(lines)
 
     def next_offer(self, date_from: T.Optional[datetime.date] = None) -> T.Optional[Offer]:
         date_from = date_from or datetime.date.today()
