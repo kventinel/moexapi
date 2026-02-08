@@ -125,7 +125,7 @@ class Bond:
                 self.offers = [item for item in self.offers if item.date != start_date]
             original_values = [item.value for item in self.amortization]
             amortization_sum = sum(original_values)
-            if abs(amortization_sum - self.initial_face_value) > 1e-9:
+            if abs(amortization_sum - self.initial_face_value) > 1e-9 and len(original_values) > 1:
                 values = [value / amortization_sum * self.initial_face_value for value in original_values]
                 rounded_values = [round(value + 1e-9, 2) for value in values]
                 for original_value, rounded_value in zip(original_values, rounded_values):
