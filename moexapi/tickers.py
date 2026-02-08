@@ -274,6 +274,11 @@ def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL) -> Tick
     return Ticker.from_secid(secid, market=market)
 
 
-def get_tickers(market: markets.Market = markets.Markets.ALL) -> list[Ticker]:
+def get_tickers(market: markets.Market = markets.Markets.ALL, limit: int = None) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
-    return [Ticker.from_secid(secid=ticker.secid, market=ticker.market) for ticker in tickers]
+    result = []
+    for idx, ticker in enumerate(tickers):
+        if idx >= limit:
+            break
+        result.append(Ticker.from_secid(secid=ticker.secid, market=ticker.market))
+    return result
