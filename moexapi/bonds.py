@@ -53,7 +53,7 @@ class Bond:
     issue_size: int
     face_value: float
     is_qualified_investors: bool
-    coupon_frequency: int
+    coupon_frequency: T.Optional[int]
     evening_session: bool
     coupon_percent: T.Optional[float]
     amortization: list[Amortization]
@@ -76,7 +76,7 @@ class Bond:
             self.issue_size = int(ticker_info["ISSUESIZE"])
             self.face_value = float(ticker_info["FACEVALUE"])
             self.is_qualified_investors = bool(ticker_info["ISQUALIFIEDINVESTORS"])
-            self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"])
+            self.coupon_frequency = int(ticker_info["COUPONFREQUENCY"]) if "COUPONFREQUENCY" in ticker_info else None
             self.evening_session = bool(ticker_info.get("EVENINGSESSION", False))
             self.coupon_percent = float(ticker_info["COUPONPERCENT"]) if "COUPONPERCENT" in ticker_info else None
             self.amortization = []
