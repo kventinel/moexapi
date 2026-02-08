@@ -278,7 +278,7 @@ def get_tickers(market: markets.Market = markets.Markets.ALL, limit: int = None)
     tickers = _parse_tickers(market=market)
     result = []
     for idx, ticker in enumerate(tickers):
-        if idx >= limit:
+        if limit is not None and idx >= limit:
             break
         result.append(Ticker.from_secid(secid=ticker.secid, market=ticker.market))
     return result
