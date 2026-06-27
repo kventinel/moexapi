@@ -178,7 +178,7 @@ class Bond:
         date_from = date_from or datetime.date.today()
         result = [offer for offer in self.offers if offer.date >= date_from]
         return result[0] if len(result) > 0 else None
-    
+
     def has_next_offer(self, date_from: T.Optional[datetime.date] = None) -> bool:
         return self.next_offer(date_from=date_from) is not None
 
