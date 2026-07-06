@@ -57,7 +57,7 @@ class Candle:
             volume=first.volume + second.volume,
             value=first.value + second.value,
         )
-    
+
     def mult(self, mult: float) -> None:
         self.low *= mult
         self.high *= mult
@@ -100,11 +100,15 @@ def _merge_candles_list(candles: list[list[Candle]]) -> list[Candle]:
 def _parse_candles_one_board(
     ticker: tickers.Ticker,
     board: str,
-    start_date: T.Optional[datetime.datetime] = None,
-    end_date: T.Optional[datetime.datetime] = None,
+    start_date: T.Optional[T.Union[datetime.datetime, str]] = None,
+    end_date: T.Optional[T.Union[datetime.datetime, str]] = None,
     interval: T.Optional[int] = None,
 ) -> list[Candle]:
     result = []
+    if isinstance(start_date, str):
+        start_date = datetime.datetime.fromisoformat(start_date)
+    if isinstance(end_date, str):
+        end_date = datetime.datetime.fromisoformat(end_date)
     while True:
         start_str = f"from={start_date.isoformat()}" if start_date else ""
         end_str = f"till={end_date.isoformat()}" if end_date else ""
@@ -145,8 +149,8 @@ def _parse_candles_one_board(
 
 def _parse_candles(
     ticker: tickers.Ticker,
-    start_date: T.Optional[datetime.datetime] = None,
-    end_date: T.Optional[datetime.datetime] = None,
+    start_date: T.Optional[T.Union[datetime.datetime, str]] = None,
+    end_date: T.Optional[T.Union[datetime.datetime, str]] = None,
     interval: T.Optional[int] = None,
 ):
     candles = []
@@ -159,8 +163,8 @@ def _parse_candles(
 
 def get_candles(
     ticker: tickers.Ticker,
-    start_date: T.Optional[datetime.datetime] = None,
-    end_date: T.Optional[datetime.datetime] = None,
+    start_date: T.Optional[T.Union[datetime.datetime, str]] = None,
+    end_date: T.Optional[T.Union[datetime.datetime, str]] = None,
     interval: T.Optional[int] = None,
 ):
     ticker = changeover.get_current_ticker(ticker)
@@ -172,6 +176,6 @@ def get_candles(
     result = _merge_candles_list(candles)
     for split in ticker_splits:
         for candle in result:
-            if candle.end < split.date:
+            if candle.end.date() < split.date:
                 candle.mult(1 / split.mult)
     return result

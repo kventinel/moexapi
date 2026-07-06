@@ -64,14 +64,15 @@ class History:
             volume=_maybe_sum(first.volume, second.volume),
             value=_maybe_sum(first.value, second.value),
         )
-    
+
     def mult(self, mult: float) -> None:
         self.low *= mult
         self.high *= mult
         self.open *= mult
         self.close *= mult
         self.mid_price *= mult
-        self.value *= mult
+        if self.value is not None:
+            self.value *= mult
 
 
 def _merge_history(first: list[History], second: list[History]) -> list[History]:
