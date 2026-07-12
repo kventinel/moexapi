@@ -45,7 +45,7 @@ def get_prev_tickers(ticker: tickers.Ticker) -> list[tickers.Ticker]:
     for line in changeovers:
         if line.new_secid == result[-1].secid:
             try:
-                result.insert(0, tickers.get_ticker(line.old_secid, market=ticker.market))
+                result.insert(0, tickers.get_ticker(line.old_secid, market=ticker.market, allow_delisted=True))
             except tickers.NotFindTicker as ex:
                 logger.warning(f"Can't find old version {ex.ticker} for {ticker}")
     return result

@@ -215,7 +215,7 @@ class Ticker:
         return result
 
     @classmethod
-    def from_secid(cls, secid: str, market: markets.Market = markets.Markets.ALL) -> "Ticker":
+    def from_secid(cls, secid: str, market: markets.Market = markets.Markets.ALL, allow_delisted: bool = False) -> "Ticker":
         parsed_tickers = _parse_tickers(market=market)
         tickers = [cls.from_listing(ticker) for ticker in parsed_tickers if ticker.secid == secid]
         if len([ticker for ticker in tickers if ticker.is_traded]) == 0:
@@ -255,6 +255,12 @@ class Ticker:
         if len(tickers) != 1:
             if len(tickers) > 1:
                 logger.error(f'Find too many tickers for {secid}: {tickers}')
+            if allow_delisted and len(tickers) == 0:
+                info = TickerInfo.from_secid(secid, market)
+                response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
+                boards = [line["boardid"] for line in utils.prepare_dict(response, "boards")]
+                if boards:
+                    return cls(secid=secid, alias=secid, is_traded=False, market=market, shortname=info.shortname, isin=info.isin, subtype=info.subtype, listlevel=info.listlevel, boards=boards, listed_till=info.listed_till)
             raise NotFindTicker(secid, len(tickers))
         tickers[0].alias = secid
         return tickers[0]
@@ -292,8 +298,8 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
     return list(tickers.values())
 
 
-def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL) -> Ticker:
-    return Ticker.from_secid(secid, market=market)
+def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL, allow_delisted: bool = False) -> Ticker:
+    return Ticker.from_secid(secid, market=market, allow_delisted=allow_delisted)
 
 
 def get_tickers(
