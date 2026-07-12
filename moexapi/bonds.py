@@ -103,7 +103,7 @@ class Bond:
                         Amortization(date=date, value=line["value"], initialfacevalue=line["initialfacevalue"])
                     )
                 for line in coupons:
-                    date = datetime.date.fromisoformat(line["recorddate"])
+                    date = datetime.date.fromisoformat(line["recorddate"] if line["recorddate"] else line["coupondate"])
                     end_date = _max(end_date, date)
                     self.coupons.append(
                         Coupon(

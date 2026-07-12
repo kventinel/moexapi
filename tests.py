@@ -106,6 +106,7 @@ class Bonds(unittest.TestCase):
         bond = moexapi.Bond(moexapi.get_ticker(secid='RU000A10A8E8', market=moexapi.Markets.BONDS))
         self.assertEqual(bond.amortization[0].value, 0.005)
         moexapi.Bond(moexapi.get_ticker(secid='SU52002RMFS1', market=moexapi.Markets.BONDS))
+        moexapi.Bond(moexapi.get_ticker(secid='SU26218RMFS6', market=moexapi.Markets.BONDS))
 
 
 class Splits(unittest.TestCase):
