@@ -10,6 +10,10 @@ class Tickers(unittest.TestCase):
     def test_shares(self):
         for ticker in ["SBERP03", "SELG-003D", "MAGN-002D", "RU0008913751"]:
             moexapi.get_ticker(ticker)
+        for ticker in ["GAZP", "SBERP", "OKEY"]:
+            moexapi.get_ticker(ticker, market=moexapi.Markets.SHARES)
+        with self.assertRaises(moexapi.NotFindTicker):
+            moexapi.get_ticker("TMOS", market=moexapi.Markets.SHARES)
 
     def test_bonds(self):
         moexapi.get_ticker(secid='RU000A0JXYA7', market=moexapi.Markets.BONDS)
@@ -21,14 +25,43 @@ class Tickers(unittest.TestCase):
         self.assertEqual(lkoh1.isin, lkoh2.isin)
 
     def test_etfs(self):
-        for ticker in ["CNYM"]:
-            moexapi.get_ticker(ticker)
+        for ticker in ["CNYM", "TMOS"]:
+            moexapi.get_ticker(ticker, market=moexapi.Markets.ETFS)
+        tickers = moexapi.get_tickers(
+            market=moexapi.Markets.ETFS,
+            is_traded=True,
+            limit=2,
+        )
+        self.assertEqual(len(tickers), 2)
 
     def test_gold(self):
         self.assertEqual(moexapi.get_ticker("GOLD").currency, "RUB")
 
     def test_old(self):
         self.assertEqual(moexapi.get_ticker("RU0009029540").secid, "SBER")
+
+    def test_listing_trade_status_has_priority(self):
+        listing = moexapi.Listing(
+            secid="RU0009029540",
+            market=moexapi.Markets.SHARES,
+            shortname="Сбербанк",
+            isin="RU0009029540",
+            board="EQBR",
+            is_traded=False,
+        )
+        info = moexapi.TickerInfo(
+            is_traded=True,
+            shortname="Сбербанк",
+            isin="RU0009029540",
+            subtype=None,
+            listlevel=1,
+        )
+        with (
+            mock.patch.object(moexapi.TickerInfo, "from_secid", return_value=info),
+            mock.patch.object(moexapi.TickerBoardInfo, "from_secid", return_value=None),
+        ):
+            ticker = moexapi.Ticker.from_listing(listing)
+        self.assertFalse(ticker.is_traded)
 
 
 class Candles(unittest.TestCase):

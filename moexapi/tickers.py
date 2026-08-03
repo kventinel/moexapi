@@ -80,7 +80,7 @@ class TickerBoardInfo:
         result = None
         for sec_line, market_line in zip(securities, marketdata):
             board = sec_line[BOARDID]
-            if market.boards and board != primary_board:
+            if board != primary_board:
                 boards.append(board)
                 continue
             else:
@@ -197,7 +197,7 @@ class Ticker:
         result = cls(
             secid=listing.secid,
             alias=listing.secid,
-            is_traded=info.is_traded,
+            is_traded=listing.is_traded,
             market=listing.market,
             shortname=listing.shortname,
             isin=info.isin,
@@ -279,6 +279,8 @@ def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing
             if len(securities) == 0:
                 break
             for line in securities:
+                if child_market.security_types and line.get("type") not in child_market.security_types:
+                    continue
                 isin = line["isin"]
                 if isin is None and child_market != markets.Markets.CURRENCY:
                     continue
@@ -305,7 +307,7 @@ def get_ticker(secid: str, market: markets.Market = markets.Markets.ALL, allow_d
 def get_tickers(
     market: markets.Market = markets.Markets.ALL,
     is_traded: T.Optional[bool] = None,
-    limit: int = None
+    limit: T.Optional[int] = None
 ) -> list[Ticker]:
     tickers = _parse_tickers(market=market)
     result = []

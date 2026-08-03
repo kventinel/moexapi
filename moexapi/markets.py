@@ -9,11 +9,13 @@ class Market:
         engines: set[str] = frozenset(),
         markets: set[str] = frozenset(),
         boards: set[str] = frozenset(),
+        security_types: set[str] = frozenset(),
     ):
         self._name = name
         self._engines = engines
         self._markets = markets
         self._boards = boards
+        self._security_types = security_types
         self._parent = parent
         self._childs: list["Market"] = []
         if parent:
@@ -51,6 +53,10 @@ class Market:
     @property
     def boards(self) -> set[str]:
         return self._join("_boards")
+
+    @property
+    def security_types(self) -> set[str]:
+        return self._join("_security_types")
     
     def childs(self) -> list["Market"]:
         if len(self._childs) == 0:
@@ -93,8 +99,8 @@ class Market:
 _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
 _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
-_SHARES = Market("shares", parent=_EQUITY, boards={"TQBR", "EQBR", "EQNE", "EQNL", "EQBS"})
-_ETFS = Market("etfs", parent=_EQUITY, boards={"TQTF", "TQTD", "TQTY"})
+_SHARES = Market("shares", parent=_EQUITY, security_types={"common_share", "preferred_share", "depositary_receipt"})
+_ETFS = Market("etfs", parent=_EQUITY, security_types={"exchange_ppif"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
 _FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})
 _COMPANY_BONDS = Market("company bonds", parent=_BONDS, boards={"TQCB"})
