@@ -127,6 +127,15 @@ class TickerBoardInfo:
             )
         if result:
             result.boards.extend(boards)
+            response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
+            for line in utils.prepare_dict(response, "boards"):
+                board = line[BOARDID.lower()]
+                if (
+                    board not in result.boards
+                    and line["engine"] in market.engines
+                    and line["market"] in market.markets
+                ):
+                    result.boards.append(board)
         return result
 
 

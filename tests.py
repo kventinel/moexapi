@@ -25,8 +25,9 @@ class Tickers(unittest.TestCase):
         self.assertEqual(lkoh1.isin, lkoh2.isin)
 
     def test_etfs(self):
-        for ticker in ["CNYM", "TMOS"]:
-            moexapi.get_ticker(ticker, market=moexapi.Markets.ETFS)
+        moexapi.get_ticker("CNYM", market=moexapi.Markets.ETFS)
+        tmos = moexapi.get_ticker("TMOS", market=moexapi.Markets.ETFS)
+        self.assertIn("TQTF", tmos.boards)
         tickers = moexapi.get_tickers(
             market=moexapi.Markets.ETFS,
             is_traded=True,
@@ -62,6 +63,38 @@ class Tickers(unittest.TestCase):
         ):
             ticker = moexapi.Ticker.from_listing(listing)
         self.assertFalse(ticker.is_traded)
+
+    def test_inactive_market_boards_are_saved(self):
+        market_response = {
+            "securities": {
+                "columns": ["BOARDID", "PREVPRICE", "CURRENCYID", "LISTLEVEL"],
+                "data": [["TQBR", 100, "SUR", 1]],
+            },
+            "marketdata": {
+                "columns": ["LAST", "VALTODAY"],
+                "data": [[101, 1000]],
+            },
+        }
+        boards_response = {
+            "boards": {
+                "columns": ["secid", "boardid", "engine", "market", "is_traded"],
+                "data": [
+                    ["TMOS", "TQBR", "stock", "shares", 1],
+                    ["TMOS", "TQTF", "stock", "shares", 0],
+                    ["TMOS", "RPEU", "stock", "repo", 1],
+                ],
+            },
+        }
+        with mock.patch(
+            "moexapi.tickers.utils.json_api_call",
+            side_effect=[market_response, boards_response],
+        ):
+            info = moexapi.TickerBoardInfo.from_secid(
+                "TMOS",
+                moexapi.Markets.ETFS,
+                "TQBR",
+            )
+        self.assertEqual(info.boards, ["TQBR", "TQTF"])
 
 
 class Candles(unittest.TestCase):
