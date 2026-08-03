@@ -37,6 +37,12 @@ def _sur_to_rub(currency: T.Optional[str]) -> T.Optional[str]:
     return currency
 
 
+def _get_security_currency(security: dict) -> T.Optional[str]:
+    if FACEVALUEONSETTLEDATE in security or LOTVALUE in security:
+        return _sur_to_rub(security.get(FACEUNIT, "RUB"))
+    return _sur_to_rub(security.get(CURRENCY, "RUB"))
+
+
 class NotFindTicker(RuntimeError):
     def __init__(self, ticker, candidates):
         self.ticker = ticker
@@ -76,12 +82,12 @@ class TickerBoardInfo:
         securities = utils.prepare_dict(response, "securities")
         marketdata = utils.prepare_dict(response, "marketdata")
         assert len(securities) == len(marketdata)
-        boards = []
+        boards: list[tuple[str, T.Optional[str]]] = []
         result = None
         for sec_line, market_line in zip(securities, marketdata):
             board = sec_line[BOARDID]
             if board != primary_board:
-                boards.append(board)
+                boards.append((board, _get_security_currency(sec_line)))
                 continue
             else:
                 assert result is None, f"Second accurance of ticker {secid}: {result.boards[0]} vs {board}"
@@ -97,10 +103,7 @@ class TickerBoardInfo:
             lotvalue = sec_line.get(FACEVALUEONSETTLEDATE)
             if lotvalue is None:
                 lotvalue = sec_line.get(LOTVALUE)
-            if lotvalue is not None:
-                currency = _sur_to_rub(sec_line.get(FACEUNIT, "RUB"))
-            else:
-                currency = _sur_to_rub(sec_line.get(CURRENCY, "RUB"))
+            currency = _get_security_currency(sec_line)
             rate = 1
             price = raw_price
             if currency is not None and currency != "RUB" and market != markets.Markets.CURRENCY and price is not None:
@@ -126,7 +129,7 @@ class TickerBoardInfo:
                 value=market_line[VALTODAY],
             )
         if result:
-            result.boards.extend(boards)
+            result.boards.extend(board for board, currency in boards if currency == result.currency)
             response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
             for line in utils.prepare_dict(response, "boards"):
                 board = line[BOARDID.lower()]
@@ -134,6 +137,7 @@ class TickerBoardInfo:
                     board not in result.boards
                     and line["engine"] in market.engines
                     and line["market"] in market.markets
+                    and _sur_to_rub(line.get(CURRENCY.lower())) == result.currency
                 ):
                     result.boards.append(board)
         return result

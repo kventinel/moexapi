@@ -68,20 +68,24 @@ class Tickers(unittest.TestCase):
         market_response = {
             "securities": {
                 "columns": ["BOARDID", "PREVPRICE", "CURRENCYID", "LISTLEVEL"],
-                "data": [["TQBR", 100, "SUR", 1]],
+                "data": [
+                    ["TQBR", 100, "SUR", 1],
+                    ["TQTY", 10, "CNY", 1],
+                ],
             },
             "marketdata": {
                 "columns": ["LAST", "VALTODAY"],
-                "data": [[101, 1000]],
+                "data": [[101, 1000], [10, 100]],
             },
         }
         boards_response = {
             "boards": {
-                "columns": ["secid", "boardid", "engine", "market", "is_traded"],
+                "columns": ["secid", "boardid", "engine", "market", "is_traded", "currencyid"],
                 "data": [
-                    ["TMOS", "TQBR", "stock", "shares", 1],
-                    ["TMOS", "TQTF", "stock", "shares", 0],
-                    ["TMOS", "RPEU", "stock", "repo", 1],
+                    ["TMOS", "TQBR", "stock", "shares", 1, "RUB"],
+                    ["TMOS", "TQTF", "stock", "shares", 0, "RUB"],
+                    ["TMOS", "TQTY", "stock", "shares", 1, "CNY"],
+                    ["TMOS", "RPEU", "stock", "repo", 1, "USD"],
                 ],
             },
         }
