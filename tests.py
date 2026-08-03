@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime
 import unittest
+from unittest import mock
 
 import moexapi
 
@@ -31,6 +32,22 @@ class Tickers(unittest.TestCase):
 
 
 class Candles(unittest.TestCase):
+    def test_batch(self):
+        tickers = [mock.Mock(secid="AAA"), mock.Mock(secid="BBB")]
+        with mock.patch(
+            "moexapi.candles.get_candles",
+            side_effect=lambda ticker, **_: [ticker.secid],
+        ) as get_candles:
+            result = moexapi.get_candles_batch(
+                tickers,
+                start_date=datetime.date(2024, 1, 1),
+                end_date=datetime.date(2024, 1, 31),
+                interval=24,
+                max_workers=2,
+            )
+        self.assertEqual(result, [["AAA"], ["BBB"]])
+        self.assertEqual(get_candles.call_count, 2)
+
     def test_index(self):
         ticker = moexapi.get_ticker("IMOEX")
         candles = moexapi.get_candles(

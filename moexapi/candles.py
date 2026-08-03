@@ -1,6 +1,6 @@
 import typing as T
 
-import copy
+import concurrent.futures
 import dataclasses
 import datetime
 
@@ -163,8 +163,8 @@ def _parse_candles(
 
 def get_candles(
     ticker: tickers.Ticker,
-    start_date: T.Optional[T.Union[datetime.datetime, str]] = None,
-    end_date: T.Optional[T.Union[datetime.datetime, str]] = None,
+    start_date: T.Optional[T.Union[datetime.datetime, datetime.date, str]] = None,
+    end_date: T.Optional[T.Union[datetime.datetime, datetime.date, str]] = None,
     interval: T.Optional[int] = None,
 ):
     ticker = changeover.get_current_ticker(ticker)
@@ -179,3 +179,23 @@ def get_candles(
             if candle.end.date() < split.date:
                 candle.mult(1 / split.mult)
     return result
+
+
+def get_candles_batch(
+    ticker_list: list[tickers.Ticker],
+    start_date: T.Optional[T.Union[datetime.datetime, datetime.date, str]] = None,
+    end_date: T.Optional[T.Union[datetime.datetime, datetime.date, str]] = None,
+    interval: T.Optional[int] = None,
+    max_workers: T.Optional[int] = None,
+) -> list[list[Candle]]:
+    """Load candles for multiple tickers concurrently, keyed by SECID."""
+    def load(ticker: tickers.Ticker) -> tuple[str, list[Candle]]:
+        return get_candles(
+            ticker,
+            start_date=start_date,
+            end_date=end_date,
+            interval=interval,
+        )
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        return list(executor.map(load, ticker_list))
