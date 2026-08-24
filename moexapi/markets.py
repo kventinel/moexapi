@@ -102,8 +102,23 @@ _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
 _SHARES = Market("shares", parent=_EQUITY, security_types={"common_share", "preferred_share", "depositary_receipt"})
 _ETFS = Market("etfs", parent=_EQUITY, security_types={"exchange_ppif"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
-_FEDERAL_BONDS = Market("federal bonds", parent=_BONDS, boards={"TQOB"})
-_COMPANY_BONDS = Market("company bonds", parent=_BONDS, boards={"TQCB"})
+_FEDERAL_BONDS = Market(
+    "federal bonds",
+    parent=_BONDS,
+    security_types={"cb_bond", "euro_bond", "ofz_bond"},
+)
+_COMPANY_BONDS = Market(
+    "company bonds",
+    parent=_BONDS,
+    security_types={
+        "corporate_bond",
+        "exchange_bond",
+        "ifi_bond",
+        "municipal_bond",
+        "state_bond",
+        "subfederal_bond",
+    },
+)
 _INDEX = Market("index", parent=_STOCK, markets={"index"})
 _CURRENCY = Market("currency", parent=_ALL, engines={"currency"}, markets={"selt"}, boards={"CETS"})
 

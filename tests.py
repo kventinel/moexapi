@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 import moexapi
+from moexapi import tickers as tickers_module
 
 
 class Tickers(unittest.TestCase):
@@ -17,6 +18,47 @@ class Tickers(unittest.TestCase):
 
     def test_bonds(self):
         moexapi.get_ticker(secid='RU000A0JXYA7', market=moexapi.Markets.BONDS)
+
+    def test_bond_type_distinguishes_securities_on_same_board(self):
+        securities_response = {
+            "securities": {
+                "columns": [
+                    "secid", "shortname", "isin", "is_traded", "type", "primary_boardid",
+                ],
+                "data": [
+                    ["RU000A10DQA8", "ОФЗ 33 CNY", "RU000A10DQA8", 1, "ofz_bond", "TQOY"],
+                    ["RU000A1057S2", "Роснфт2P12", "RU000A1057S2", 1, "exchange_bond", "TQOY"],
+                ],
+            },
+        }
+        empty_response = {
+            "securities": {
+                "columns": [
+                    "secid", "shortname", "isin", "is_traded", "type", "primary_boardid",
+                ],
+                "data": [],
+            },
+        }
+        with mock.patch(
+            "moexapi.tickers.utils.json_api_call",
+            side_effect=[
+                securities_response,
+                empty_response,
+                securities_response,
+                empty_response,
+            ],
+        ):
+            listings = tickers_module._parse_tickers(market=moexapi.Markets.BONDS)
+
+        listings_by_secid = {listing.secid: listing for listing in listings}
+        self.assertEqual(
+            listings_by_secid["RU000A10DQA8"].market,
+            moexapi.Markets.FEDERAL_BONDS,
+        )
+        self.assertEqual(
+            listings_by_secid["RU000A1057S2"].market,
+            moexapi.Markets.COMPANY_BONDS,
+        )
 
     def test_isin(self):
         moexapi.get_ticker("RU000A1039N1")
@@ -174,10 +216,35 @@ class Candles(unittest.TestCase):
 
 class Dividends(unittest.TestCase):
     def test_dividends(self):
-        for ticker in ["CHMF", "MOEX", "SFIN"]:
-            ticker = moexapi.get_ticker(ticker, market=moexapi.Markets.SHARES)
+        ticker = mock.Mock(secid="CHMF")
+        response = {
+            "dividends": {
+                "columns": ["secid", "registryclosedate", "value"],
+                "data": [["CHMF", "2024-06-18", 191.51]],
+            },
+        }
+        with (
+            mock.patch("moexapi.dividends.changeover.get_current_ticker", return_value=ticker),
+            mock.patch("moexapi.dividends.changeover.get_prev_tickers", return_value=[ticker]),
+            mock.patch("moexapi.dividends.splits.get_splits", return_value=[]),
+            mock.patch("moexapi.dividends.utils.json_api_call", return_value=response),
+        ):
             dividends = moexapi.get_dividends(ticker)
-            self.assertGreater(len(dividends), 0)
+
+        self.assertEqual(
+            dividends,
+            [moexapi.Dividend(date=datetime.date(2024, 6, 18), value=191.51)],
+        )
+
+    def test_missing_dividends_block(self):
+        ticker = mock.Mock(secid="CHMF")
+        with mock.patch(
+            "moexapi.dividends.utils.json_api_call",
+            return_value={"description": {}, "boards": {}},
+        ):
+            dividends = moexapi.dividends._get_dividends_for_one_ticker(ticker)
+
+        self.assertEqual(dividends, [])
 
 
 class Bonds(unittest.TestCase):

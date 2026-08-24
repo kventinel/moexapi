@@ -17,7 +17,10 @@ Dividends = list[Dividend]
 
 
 def _get_dividends_for_one_ticker(ticker: tickers.Ticker):
-    resp = utils.json_api_call(f"https://iss.moex.com/iss/securities/{ticker.secid}/dividends.json")['dividends']
+    response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{ticker.secid}/dividends.json")
+    resp = response.get('dividends')
+    if resp is None:
+        return []
     columns = resp['columns']
     data = resp['data']
     dividends: Dividends = []
