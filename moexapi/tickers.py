@@ -3,6 +3,7 @@ import typing as T
 import collections
 import dataclasses
 import datetime
+import functools
 
 from . import exchange
 from . import markets
@@ -279,6 +280,7 @@ class Ticker:
         return tickers[0]
 
 
+@functools.lru_cache(maxsize=None)
 def _parse_tickers(market: markets.Market = markets.Markets.ALL) -> list[Listing]:
     tickers: dict[str, Listing] = {}
     for child_market in market.childs():

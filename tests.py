@@ -20,6 +20,8 @@ class Tickers(unittest.TestCase):
         moexapi.get_ticker(secid='RU000A0JXYA7', market=moexapi.Markets.BONDS)
 
     def test_bond_type_distinguishes_securities_on_same_board(self):
+        tickers_module._parse_tickers.cache_clear()
+        self.addCleanup(tickers_module._parse_tickers.cache_clear)
         securities_response = {
             "securities": {
                 "columns": [
@@ -49,6 +51,9 @@ class Tickers(unittest.TestCase):
             ],
         ):
             listings = tickers_module._parse_tickers(market=moexapi.Markets.BONDS)
+            cached_listings = tickers_module._parse_tickers(market=moexapi.Markets.BONDS)
+
+        self.assertIs(listings, cached_listings)
 
         listings_by_secid = {listing.secid: listing for listing in listings}
         self.assertEqual(
