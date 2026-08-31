@@ -253,6 +253,54 @@ class Dividends(unittest.TestCase):
 
 
 class Bonds(unittest.TestCase):
+    def test_duplicate_coupon_on_pagination_boundary(self):
+        ticker = mock.Mock(secid="BYM000001818", shortname="РесБел 331")
+        ticker_info = {
+            "NAME": "РесБел 331 29.06.2027",
+            "ISSUEDATE": "2024-12-27",
+            "MATDATE": "2027-06-29",
+            "INITIALFACEVALUE": 1000,
+            "STARTDATEMOEX": "2025-01-21",
+            "ISSUESIZE": 240419,
+            "FACEVALUE": 1000,
+            "ISQUALIFIEDINVESTORS": 1,
+        }
+        coupon_columns = [
+            "recorddate", "coupondate", "startdate", "value",
+            "initialfacevalue",
+        ]
+        first_page = {
+            "amortizations": {
+                "columns": ["amortdate", "value", "initialfacevalue"],
+                "data": [["2027-06-29", 1000, 1000]],
+            },
+            "coupons": {
+                "columns": coupon_columns,
+                "data": [["2027-06-28", "2027-06-29", "2026-12-29", 38.02, 1000]],
+            },
+            "offers": {"columns": [], "data": []},
+        }
+        boundary_page = {
+            "amortizations": first_page["amortizations"],
+            "coupons": first_page["coupons"],
+            "offers": {"columns": [], "data": []},
+        }
+        with (
+            mock.patch(
+                "moexapi.bonds.tickers.get_ticker_info_dict",
+                return_value=ticker_info,
+            ),
+            mock.patch(
+                "moexapi.bonds.utils.json_api_call",
+                side_effect=[first_page, boundary_page],
+            ),
+        ):
+            bond = moexapi.Bond(ticker)
+
+        self.assertEqual(len(bond.amortization), 1)
+        self.assertEqual(len(bond.coupons), 1)
+        self.assertEqual(bond.coupons[0].value, 38.02)
+
     def test_coupon_without_start_date(self):
         ticker = mock.Mock(secid="RU000A10B4J5", shortname="ПолиплП2Б3")
         ticker_info = {

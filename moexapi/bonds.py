@@ -99,31 +99,34 @@ class Bond:
                 for line in amortization:
                     date = datetime.date.fromisoformat(line["amortdate"])
                     end_date = _max(end_date, date)
-                    self.amortization.append(
-                        Amortization(date=date, value=line["value"], initialfacevalue=line["initialfacevalue"])
+                    item = Amortization(
+                        date=date,
+                        value=line["value"],
+                        initialfacevalue=line["initialfacevalue"],
                     )
+                    if item not in self.amortization:
+                        self.amortization.append(item)
                 for line in coupons:
                     date = datetime.date.fromisoformat(line["recorddate"] if line["recorddate"] else line["coupondate"])
                     end_date = _max(end_date, date)
-                    self.coupons.append(
-                        Coupon(
-                            date=date,
-                            start_date=datetime.date.fromisoformat(line["startdate"])
-                            if line.get("startdate") else None,
-                            value=line["value"],
-                            initialfacevalue=line["initialfacevalue"],
-                        )
+                    item = Coupon(
+                        date=date,
+                        start_date=datetime.date.fromisoformat(line["startdate"])
+                        if line.get("startdate") else None,
+                        value=line["value"],
+                        initialfacevalue=line["initialfacevalue"],
                     )
+                    if item not in self.coupons:
+                        self.coupons.append(item)
                 for line in offers:
                     date = datetime.date.fromisoformat(line["offerdate"])
                     end_date = _max(end_date, date)
-                    self.offers.append(Offer(date=date, value=line["value"]))
+                    item = Offer(date=date, value=line["value"])
+                    if item not in self.offers:
+                        self.offers.append(item)
                 if end_date == start_date:
                     break
                 start_date = end_date
-                self.amortization = [item for item in self.amortization if item.date != start_date]
-                self.coupons = [item for item in self.coupons if item.date != start_date]
-                self.offers = [item for item in self.offers if item.date != start_date]
             original_values = [item.value for item in self.amortization]
             amortization_sum = sum(original_values)
             if abs(amortization_sum - self.initial_face_value) > 1e-9 and len(original_values) > 1:
