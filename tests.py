@@ -253,6 +253,50 @@ class Dividends(unittest.TestCase):
 
 
 class Bonds(unittest.TestCase):
+    def test_coupon_without_start_date(self):
+        ticker = mock.Mock(secid="RU000A10B4J5", shortname="ПолиплП2Б3")
+        ticker_info = {
+            "NAME": "Полипласт П2 БО-03",
+            "ISSUEDATE": "2026-08-01",
+            "MATDATE": "2029-08-01",
+            "INITIALFACEVALUE": 1000,
+            "STARTDATEMOEX": "2026-08-01",
+            "ISSUESIZE": 1000000,
+            "FACEVALUE": 1000,
+            "ISQUALIFIEDINVESTORS": 0,
+        }
+        bondization = {
+            "amortizations": {
+                "columns": [],
+                "data": [],
+            },
+            "coupons": {
+                "columns": [
+                    "recorddate", "coupondate", "startdate", "value",
+                    "initialfacevalue",
+                ],
+                "data": [[None, "2026-09-01", None, 10, 1000]],
+            },
+            "offers": {
+                "columns": [],
+                "data": [],
+            },
+        }
+        with (
+            mock.patch(
+                "moexapi.bonds.tickers.get_ticker_info_dict",
+                return_value=ticker_info,
+            ),
+            mock.patch(
+                "moexapi.bonds.utils.json_api_call",
+                side_effect=[bondization, bondization],
+            ),
+        ):
+            bond = moexapi.Bond(ticker)
+
+        self.assertEqual(len(bond.coupons), 1)
+        self.assertIsNone(bond.coupons[0].start_date)
+
     def test_bonds(self):
         bond = moexapi.Bond(moexapi.get_ticker("ОФЗ26238", market=moexapi.Markets.BONDS))
         self.assertEqual(bond.issue_date, datetime.date(2021, 6, 16))

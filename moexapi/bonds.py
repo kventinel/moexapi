@@ -28,7 +28,7 @@ class Amortization:
 @dataclasses.dataclass
 class Coupon:
     date: datetime.date
-    start_date: datetime.date
+    start_date: T.Optional[datetime.date]
     value: float
     initialfacevalue: float
 
@@ -108,7 +108,8 @@ class Bond:
                     self.coupons.append(
                         Coupon(
                             date=date,
-                            start_date=datetime.date.fromisoformat(line["startdate"]),
+                            start_date=datetime.date.fromisoformat(line["startdate"])
+                            if line.get("startdate") else None,
                             value=line["value"],
                             initialfacevalue=line["initialfacevalue"],
                         )
