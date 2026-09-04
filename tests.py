@@ -141,6 +141,42 @@ class Tickers(unittest.TestCase):
             ticker = moexapi.Ticker.from_listing(listing)
         self.assertFalse(ticker.is_traded)
 
+    def test_missing_board_listlevel_does_not_warn(self):
+        listing = moexapi.Listing(
+            secid="TEST",
+            market=moexapi.Markets.SHARES,
+            shortname="Test security",
+            isin="RU0000000000",
+            board="TQBR",
+            is_traded=True,
+        )
+        info = moexapi.TickerInfo(
+            is_traded=True,
+            shortname="Test security",
+            isin="RU0000000000",
+            subtype=None,
+            listlevel=3,
+        )
+        board_info = moexapi.TickerBoardInfo(
+            boards=["TQBR"],
+            currency="RUB",
+            raw_price=None,
+            price=None,
+            price_in_rub=None,
+            accumulated_coupon=0,
+            listlevel=None,
+            value=None,
+        )
+        with (
+            mock.patch.object(moexapi.TickerInfo, "from_secid", return_value=info),
+            mock.patch.object(moexapi.TickerBoardInfo, "from_secid", return_value=board_info),
+            mock.patch.object(tickers_module.logger, "warning") as warning,
+        ):
+            ticker = moexapi.Ticker.from_listing(listing)
+
+        self.assertEqual(ticker.listlevel, 3)
+        warning.assert_not_called()
+
     def test_inactive_market_boards_are_saved(self):
         market_response = {
             "securities": {

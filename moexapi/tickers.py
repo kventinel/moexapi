@@ -241,6 +241,8 @@ class Ticker:
         board_info = TickerBoardInfo.from_secid(listing.secid, listing.market, listing.board)
         if board_info is not None:
             for key, value in dataclasses.asdict(board_info).items():
+                if value is None:
+                    continue
                 if getattr(result, key, None) is None or getattr(result, key, None) == []:
                     setattr(result, key, value)
                 elif getattr(result, key) != value:
