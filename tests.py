@@ -8,6 +8,36 @@ from moexapi import tickers as tickers_module
 
 
 class Tickers(unittest.TestCase):
+    def test_delisted_ticker_uses_general_board_metadata(self):
+        market_response = {
+            "securities": {"columns": [], "data": []},
+            "marketdata": {"columns": [], "data": []},
+        }
+        boards_response = {
+            "boards": {
+                "columns": [
+                    "secid", "boardid", "engine", "market", "currencyid"
+                ],
+                "data": [
+                    ["HHRU", "TQBR", "stock", "shares", "RUB"],
+                    ["HHRU", "RPEU", "stock", "repo", "USD"],
+                ],
+            },
+        }
+        with mock.patch(
+            "moexapi.tickers.utils.json_api_call",
+            side_effect=[market_response, boards_response],
+        ):
+            info = moexapi.TickerBoardInfo.from_secid(
+                "HHRU",
+                moexapi.Markets.SHARES,
+                "TQBR",
+            )
+
+        self.assertEqual(info.currency, "RUB")
+        self.assertEqual(info.boards, ["TQBR"])
+        self.assertIsNone(info.price)
+
     def test_shares(self):
         for ticker in ["SBERP03", "SELG-003D", "MAGN-002D", "RU0008913751"]:
             moexapi.get_ticker(ticker)

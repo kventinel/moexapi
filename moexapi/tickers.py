@@ -131,16 +131,35 @@ class TickerBoardInfo:
             )
         if result:
             result.boards.extend(board for board, currency in boards if currency == result.currency)
-            response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
-            for line in utils.prepare_dict(response, "boards"):
-                board = line[BOARDID.lower()]
-                if (
-                    board not in result.boards
-                    and line["engine"] in market.engines
-                    and line["market"] in market.markets
-                    and _sur_to_rub(line.get(CURRENCY.lower())) == result.currency
-                ):
-                    result.boards.append(board)
+        response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{secid}.json")
+        board_lines = utils.prepare_dict(response, "boards")
+        if result is None:
+            primary_lines = [
+                line for line in board_lines
+                if line[BOARDID.lower()] == primary_board
+            ]
+            if not primary_lines:
+                return None
+            currency = _sur_to_rub(primary_lines[0].get(CURRENCY.lower()))
+            result = cls(
+                boards=[primary_board],
+                currency=currency,
+                raw_price=None,
+                price=None,
+                price_in_rub=None,
+                accumulated_coupon=0,
+                listlevel=None,
+                value=None,
+            )
+        for line in board_lines:
+            board = line[BOARDID.lower()]
+            if (
+                board not in result.boards
+                and line["engine"] in market.engines
+                and line["market"] in market.markets
+                and _sur_to_rub(line.get(CURRENCY.lower())) == result.currency
+            ):
+                result.boards.append(board)
         return result
 
 
