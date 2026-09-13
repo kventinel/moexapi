@@ -319,6 +319,46 @@ class Dividends(unittest.TestCase):
 
 
 class Bonds(unittest.TestCase):
+    def test_offer_with_zero_date(self):
+        ticker = mock.Mock(secid="RU000A0JXN05", shortname="РЖД Б01P1R")
+        ticker_info = {
+            "NAME": "РЖД БО-001P-01R",
+            "ISSUEDATE": "2016-06-10",
+            "MATDATE": "2031-06-06",
+            "INITIALFACEVALUE": 1000,
+            "STARTDATEMOEX": "2016-06-16",
+            "ISSUESIZE": 15000000,
+            "FACEVALUE": 1000,
+            "ISQUALIFIEDINVESTORS": 0,
+        }
+        bondization = {
+            "amortizations": {"columns": [], "data": []},
+            "coupons": {"columns": [], "data": []},
+            "offers": {
+                "columns": ["offerdate", "value"],
+                "data": [
+                    ["0000-00-00", None],
+                    ["2028-05-26", 1000],
+                ],
+            },
+        }
+        with (
+            mock.patch(
+                "moexapi.bonds.tickers.get_ticker_info_dict",
+                return_value=ticker_info,
+            ),
+            mock.patch(
+                "moexapi.bonds.utils.json_api_call",
+                side_effect=[bondization, bondization],
+            ),
+        ):
+            bond = moexapi.Bond(ticker)
+
+        self.assertEqual(
+            bond.offers,
+            [moexapi.Offer(date=datetime.date(2028, 5, 26), value=1000)],
+        )
+
     def test_duplicate_coupon_on_pagination_boundary(self):
         ticker = mock.Mock(secid="BYM000001818", shortname="РесБел 331")
         ticker_info = {

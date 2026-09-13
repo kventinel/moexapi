@@ -119,7 +119,10 @@ class Bond:
                     if item not in self.coupons:
                         self.coupons.append(item)
                 for line in offers:
-                    date = datetime.date.fromisoformat(line["offerdate"])
+                    offer_date = line.get("offerdate")
+                    if not offer_date or offer_date == "0000-00-00":
+                        continue
+                    date = datetime.date.fromisoformat(offer_date)
                     end_date = _max(end_date, date)
                     item = Offer(date=date, value=line["value"])
                     if item not in self.offers:
