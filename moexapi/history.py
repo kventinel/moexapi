@@ -120,6 +120,9 @@ def _parse_history(
         history = utils.prepare_dict(response, "history")
         boards = []
         for line in history:
+            board = line["BOARDID"]
+            if ticker.boards and board not in ticker.boards:
+                continue
             date = datetime.date.fromisoformat(line["TRADEDATE"])
             start_date = date
             low = line["LOW"]
@@ -144,7 +147,6 @@ def _parse_history(
                 volume=line.get("VOLUME"),
                 value=value,
             )
-            board = line["BOARDID"]
             if len(result) > 0 and result[-1].date == date:
                 if board in boards:
                     continue

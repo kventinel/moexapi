@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 import moexapi
+from moexapi import history as history_module
 from moexapi import tickers as tickers_module
 
 
@@ -283,6 +284,38 @@ class Candles(unittest.TestCase):
         history = moexapi.get_history(ticker, start_date=datetime.date(2019, 6, 5), end_date=datetime.date(2019, 6, 5))
         self.assertEqual(len(history), 1)
         self.assertAlmostEqual(history[0].mid_price, 97.865)
+
+
+class History(unittest.TestCase):
+    def test_history_ignores_boards_with_a_different_currency(self):
+        response = {
+            "history": {
+                "columns": [
+                    "TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+                    "WAPRICE", "NUMTRADES", "VOLUME", "VALUE",
+                ],
+                "data": [
+                    ["2026-09-08", "TQBR", 1348.68, 1370.34, 1356.82, 1352.76,
+                     1357.23, 163, 2662, 3612898.51],
+                    ["2026-09-08", "TQTY", 105.78, 105.78, 105.78, 105.78,
+                     105.59, 1, 20, 2115.6],
+                ],
+            },
+        }
+        ticker = mock.Mock(
+            secid="AKMC",
+            market=moexapi.Markets.ETFS,
+            boards=["TQBR", "TQTF"],
+        )
+        with mock.patch("moexapi.history.utils.json_api_call", return_value=response):
+            candles = history_module._parse_history(
+                ticker,
+                start_date=datetime.date(2026, 9, 8),
+                end_date=datetime.date(2026, 9, 8),
+            )
+
+        self.assertEqual(len(candles), 1)
+        self.assertEqual(candles[0].close, 1352.76)
 
 
 class Dividends(unittest.TestCase):
