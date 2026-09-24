@@ -33,6 +33,8 @@ LISTED_TILL = "listed_till"
 
 
 def _sur_to_rub(currency: T.Optional[str]) -> T.Optional[str]:
+    if not currency:
+        return None
     if currency == "SUR":
         return "RUB"
     return currency
@@ -69,7 +71,7 @@ class Listing:
 @dataclasses.dataclass
 class TickerBoardInfo:
     boards: list[str]
-    currency: str
+    currency: T.Optional[str]
     raw_price: T.Optional[float]
     price: T.Optional[float]
     price_in_rub: T.Optional[float]

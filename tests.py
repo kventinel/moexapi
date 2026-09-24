@@ -9,6 +9,39 @@ from moexapi import tickers as tickers_module
 
 
 class Tickers(unittest.TestCase):
+    def test_empty_index_currency_is_not_resolved_as_currency_ticker(self):
+        market_response = {
+            "securities": {
+                "columns": ["BOARDID", "CURRENCYID", "LISTLEVEL"],
+                "data": [["RTSI", "", None]],
+            },
+            "marketdata": {
+                "columns": ["CURRENTVALUE", "VALTODAY"],
+                "data": [[1000, 1000000]],
+            },
+        }
+        boards_response = {
+            "boards": {
+                "columns": ["secid", "boardid", "engine", "market", "currencyid"],
+                "data": [["RVI", "RTSI", "stock", "index", ""]],
+            },
+        }
+        with (
+            mock.patch(
+                "moexapi.tickers.utils.json_api_call",
+                side_effect=[market_response, boards_response],
+            ),
+            mock.patch("moexapi.tickers.exchange.get_rate") as get_rate,
+        ):
+            info = moexapi.TickerBoardInfo.from_secid(
+                "RVI", moexapi.Markets.INDEX, "RTSI"
+            )
+
+        self.assertIsNone(info.currency)
+        self.assertEqual(info.price, 1000)
+        self.assertEqual(info.price_in_rub, 1000)
+        get_rate.assert_not_called()
+
     def test_delisted_ticker_uses_general_board_metadata(self):
         market_response = {
             "securities": {"columns": [], "data": []},
