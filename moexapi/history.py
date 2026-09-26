@@ -71,8 +71,8 @@ class History:
         self.open *= mult
         self.close *= mult
         self.mid_price *= mult
-        if self.value is not None:
-            self.value *= mult
+        if self.volume is not None:
+            self.volume /= mult
 
 
 def _merge_history(first: list[History], second: list[History]) -> list[History]:

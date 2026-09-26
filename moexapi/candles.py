@@ -63,7 +63,8 @@ class Candle:
         self.high *= mult
         self.open *= mult
         self.close *= mult
-        self.value *= mult
+        if self.volume is not None:
+            self.volume /= mult
 
 
 def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:

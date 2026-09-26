@@ -5,6 +5,7 @@ from unittest import mock
 
 import moexapi
 from moexapi import history as history_module
+from moexapi import candles as candles_module
 from moexapi import tickers as tickers_module
 
 
@@ -249,6 +250,29 @@ class Tickers(unittest.TestCase):
 
 
 class Candles(unittest.TestCase):
+    def test_split_adjusts_prices_and_volume_but_preserves_turnover(self):
+        ticker = mock.Mock(secid="TEST")
+        before = candles_module.Candle(
+            datetime.datetime(2020, 1, 1), datetime.datetime(2020, 1, 1, 23),
+            90, 110, 100, 100, 10, 1000,
+        )
+        after = candles_module.Candle(
+            datetime.datetime(2020, 1, 3), datetime.datetime(2020, 1, 3, 23),
+            9, 11, 10, 10, 100, 1000,
+        )
+        with (
+            mock.patch("moexapi.candles.changeover.get_current_ticker", return_value=ticker),
+            mock.patch("moexapi.candles.changeover.get_prev_tickers", return_value=[ticker]),
+            mock.patch("moexapi.candles.splits.get_splits", return_value=[
+                moexapi.Split(datetime.date(2020, 1, 2), "TEST", 10)
+            ]),
+            mock.patch("moexapi.candles._parse_candles", return_value=[before, after]),
+        ):
+            result = moexapi.get_candles(ticker)
+
+        self.assertEqual((result[0].close, result[0].volume, result[0].value), (10, 100, 1000))
+        self.assertEqual((result[1].close, result[1].volume, result[1].value), (10, 100, 1000))
+
     def test_batch(self):
         tickers = [mock.Mock(secid="AAA"), mock.Mock(secid="BBB")]
         with mock.patch(
@@ -320,6 +344,27 @@ class Candles(unittest.TestCase):
 
 
 class History(unittest.TestCase):
+    def test_split_adjusts_prices_and_volume_but_preserves_turnover(self):
+        ticker = mock.Mock(secid="TEST")
+        before = history_module.History(
+            datetime.date(2020, 1, 1), 90, 110, 100, 100, 100, 1, 10, 1000
+        )
+        after = history_module.History(
+            datetime.date(2020, 1, 3), 9, 11, 10, 10, 10, 1, 100, 1000
+        )
+        with (
+            mock.patch("moexapi.history.changeover.get_current_ticker", return_value=ticker),
+            mock.patch("moexapi.history.changeover.get_prev_tickers", return_value=[ticker]),
+            mock.patch("moexapi.history.splits.get_splits", return_value=[
+                moexapi.Split(datetime.date(2020, 1, 2), "TEST", 10)
+            ]),
+            mock.patch("moexapi.history._parse_history", return_value=[before, after]),
+        ):
+            result = moexapi.get_history(ticker)
+
+        self.assertEqual((result[0].close, result[0].volume, result[0].value), (10, 100, 1000))
+        self.assertEqual((result[1].close, result[1].volume, result[1].value), (10, 100, 1000))
+
     def test_history_ignores_boards_with_a_different_currency(self):
         response = {
             "history": {
