@@ -39,7 +39,8 @@ class Coupon:
 @dataclasses.dataclass
 class Offer:
     date: datetime.date
-    value: float
+    value: T.Optional[float]
+    type: str = ""
 
 
 @dataclasses.dataclass(init=True)
@@ -124,7 +125,10 @@ class Bond:
                         continue
                     date = datetime.date.fromisoformat(offer_date)
                     end_date = _max(end_date, date)
-                    item = Offer(date=date, value=line["value"])
+                    value = line.get("value")
+                    if value is None and line.get("price") is not None and line.get("facevalue") is not None:
+                        value = float(line["facevalue"]) * float(line["price"]) / 100
+                    item = Offer(date=date, value=value, type=line.get("offertype") or "")
                     if item not in self.offers:
                         self.offers.append(item)
                 if end_date == start_date:

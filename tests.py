@@ -425,6 +425,36 @@ class Bonds(unittest.TestCase):
             [moexapi.Offer(date=datetime.date(2028, 5, 26), value=1000)],
         )
 
+    def test_offer_type_and_redemption_price_from_bondization(self):
+        ticker = mock.Mock(secid="RU000A10EW44", shortname="ПолюсБ1P5")
+        ticker_info = {
+            "NAME": "Полюс ПБО-05",
+            "ISSUEDATE": "2026-01-01",
+            "MATDATE": "2031-03-22",
+            "INITIALFACEVALUE": 1000,
+            "ISSUESIZE": 1000000,
+            "FACEVALUE": 1000,
+            "ISQUALIFIEDINVESTORS": 0,
+        }
+        bondization = {
+            "amortizations": {"columns": [], "data": []},
+            "coupons": {"columns": [], "data": []},
+            "offers": {
+                "columns": ["offerdate", "value", "price", "facevalue", "offertype"],
+                "data": [["2030-04-01", None, 100, 1000, "Оферта"]],
+            },
+        }
+        with (
+            mock.patch("moexapi.bonds.tickers.get_ticker_info_dict", return_value=ticker_info),
+            mock.patch("moexapi.bonds.utils.json_api_call", side_effect=[bondization, bondization]),
+        ):
+            bond = moexapi.Bond(ticker)
+
+        self.assertEqual(
+            bond.offers,
+            [moexapi.Offer(date=datetime.date(2030, 4, 1), value=1000, type="Оферта")],
+        )
+
     def test_duplicate_coupon_on_pagination_boundary(self):
         ticker = mock.Mock(secid="BYM000001818", shortname="РесБел 331")
         ticker_info = {
