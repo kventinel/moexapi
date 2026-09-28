@@ -38,7 +38,8 @@ class History:
     mid_price -- weighted average price of the day
     numtrades -- number of trades for the day
     volume -- number of shares/bonds/currencies sold on the day
-    value -- sum of all transactions in RUB for the day
+    value -- sum of all transactions in currency for the day
+    currency -- currency of transaction value
     """
     date: datetime.date
     low: float
@@ -49,10 +50,12 @@ class History:
     numtrades: int
     volume: T.Optional[int]
     value: T.Optional[float]
+    currency: T.Optional[str] = None
 
     @classmethod
     def merge(cls, first: 'History', second: 'History'):
         assert first.date == second.date
+        assert first.currency == second.currency, "Can't merge history in different currencies"
         return cls(
             date=first.date,
             low=min(first.low, second.low),
@@ -63,6 +66,7 @@ class History:
             numtrades=first.numtrades + second.numtrades,
             volume=_maybe_sum(first.volume, second.volume),
             value=_maybe_sum(first.value, second.value),
+            currency=first.currency,
         )
 
     def mult(self, mult: float) -> None:
@@ -134,8 +138,10 @@ def _parse_history(
             if low == 0.0 or high == 0.0 or open == 0.0 or close == 0.0:
                 continue
             value = line.get("VALUE")
+            currency = tickers._sur_to_rub(line.get("CURRENCYID") or ticker.currency)
             if ticker.market == markets.Markets.CURRENCY:
                 value = line.get("VOLRUR")
+                currency = "RUB"
             item = History(
                 date=date,
                 low=low,
@@ -146,6 +152,7 @@ def _parse_history(
                 numtrades=line.get("NUMTRADES") or 0,
                 volume=line.get("VOLUME"),
                 value=value,
+                currency=currency,
             )
             if len(result) > 0 and result[-1].date == date:
                 if board in boards:

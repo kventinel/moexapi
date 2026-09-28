@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import datetime
+import dataclasses
 import unittest
 from unittest import mock
 
 import moexapi
 from moexapi import history as history_module
 from moexapi import candles as candles_module
+from moexapi import exchange as exchange_module
 from moexapi import tickers as tickers_module
 
 
@@ -250,6 +252,23 @@ class Tickers(unittest.TestCase):
 
 
 class Candles(unittest.TestCase):
+    def test_foreign_currency_turnover_keeps_source_currency(self):
+        ticker = mock.Mock(secid="RU000A109Z01", market=moexapi.Markets.BONDS, currency="CNY")
+        response = {"candles": {
+            "columns": ["begin", "end", "low", "high", "open", "close", "volume", "value"],
+            "data": [["2026-09-24 10:00:00", "2026-09-24 10:59:59", 62.86, 62.86,
+                      62.86, 62.86, 6, 3771.6]],
+        }}
+        empty = {"candles": {"columns": [], "data": []}}
+        with mock.patch("moexapi.candles.utils.json_api_call", side_effect=[response, empty]):
+            result = candles_module._parse_candles_one_board(ticker, "TQOY")
+        self.assertEqual(result[0].value, 3771.6)
+        self.assertEqual(result[0].currency, "CNY")
+        self.assertEqual(candles_module.Candle.merge(result[0], result[0]).currency, "CNY")
+        other = dataclasses.replace(result[0], currency="RUB")
+        with self.assertRaises(AssertionError):
+            candles_module.Candle.merge(result[0], other)
+
     def test_split_adjusts_prices_and_volume_but_preserves_turnover(self):
         ticker = mock.Mock(secid="TEST")
         before = candles_module.Candle(
@@ -344,6 +363,57 @@ class Candles(unittest.TestCase):
 
 
 class History(unittest.TestCase):
+    def test_foreign_currency_bond_turnover_keeps_source_currency(self):
+        date = datetime.date(2026, 9, 24)
+        response = {
+            "history": {
+                "columns": [
+                    "TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+                    "NUMTRADES", "VOLUME", "VALUE", "CURRENCYID",
+                ],
+                "data": [["2026-09-24", "TQOY", 62.86, 62.86, 62.86, 62.86,
+                          2, 6, 3771.6, "CNY"]],
+            },
+        }
+        ticker = mock.Mock(
+            secid="RU000A109Z01", market=moexapi.Markets.BONDS, boards=["TQOY"]
+        )
+        with (
+            mock.patch("moexapi.history.utils.json_api_call", return_value=response),
+            mock.patch("moexapi.exchange.get_rate", return_value=12.6) as rate,
+        ):
+            candles = history_module._parse_history(ticker, start_date=date, end_date=date)
+
+        self.assertEqual(len(candles), 1)
+        self.assertEqual(candles[0].value, 3771.6)
+        self.assertEqual(candles[0].currency, "CNY")
+        rate.assert_not_called()
+
+    def test_rub_bond_turnover_is_not_converted(self):
+        date = datetime.date(2026, 9, 25)
+        response = {
+            "history": {
+                "columns": [
+                    "TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+                    "NUMTRADES", "VOLUME", "VALUE", "CURRENCYID",
+                ],
+                "data": [["2026-09-25", "TQCB", 98.9, 100.292, 100.2899, 99.8299,
+                          180, 1880, 16529780.6, "SUR"]],
+            },
+        }
+        ticker = mock.Mock(
+            secid="RU000A10B347", market=moexapi.Markets.BONDS, boards=["TQCB"]
+        )
+        with (
+            mock.patch("moexapi.history.utils.json_api_call", return_value=response),
+            mock.patch("moexapi.exchange.get_rate") as rate,
+        ):
+            candles = history_module._parse_history(ticker, start_date=date, end_date=date)
+
+        self.assertEqual(candles[0].value, 16529780.6)
+        self.assertEqual(candles[0].currency, "RUB")
+        rate.assert_not_called()
+
     def test_split_adjusts_prices_and_volume_but_preserves_turnover(self):
         ticker = mock.Mock(secid="TEST")
         before = history_module.History(
@@ -384,6 +454,7 @@ class History(unittest.TestCase):
             secid="AKMC",
             market=moexapi.Markets.ETFS,
             boards=["TQBR", "TQTF"],
+            currency="RUB",
         )
         with mock.patch("moexapi.history.utils.json_api_call", return_value=response):
             candles = history_module._parse_history(
@@ -394,7 +465,14 @@ class History(unittest.TestCase):
 
         self.assertEqual(len(candles), 1)
         self.assertEqual(candles[0].close, 1352.76)
+        self.assertEqual(candles[0].currency, "RUB")
 
+
+class Exchange(unittest.TestCase):
+    def test_current_rate_uses_existing_moex_path(self):
+        with mock.patch("moexapi.exchange.get_moex_usd_eur_rate", return_value=92.5) as moex_rate:
+            self.assertEqual(exchange_module.get_rate("USD"), 92.5)
+        moex_rate.assert_called_once_with("USD")
 
 class Dividends(unittest.TestCase):
     def test_dividends(self):

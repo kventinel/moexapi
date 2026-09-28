@@ -22,7 +22,8 @@ class Candle:
     open -- open price of the day
     close -- close price of the day
     volume -- number of shares/bonds/currencies sold on the day
-    value -- sum of all transactions in RUB for the day
+    value -- sum of all transactions in currency for the day
+    currency -- currency of transaction value
     """
     start: datetime.datetime
     end: datetime.datetime
@@ -32,9 +33,11 @@ class Candle:
     close: float
     volume: T.Optional[int]
     value: T.Optional[float]
+    currency: T.Optional[str] = None
 
     @classmethod
     def merge(cls, first: 'Candle', second: 'Candle'):
+        assert first.currency == second.currency, "Can't merge candles in different currencies"
         if second.start < first.start:
             start = second.start
             open = second.open
@@ -56,6 +59,7 @@ class Candle:
             close=close,
             volume=first.volume + second.volume,
             value=first.value + second.value,
+            currency=first.currency,
         )
 
     def mult(self, mult: float) -> None:
@@ -141,6 +145,7 @@ def _parse_candles_one_board(
                     close=close,
                     volume=line.get("volume"),
                     value=line.get("value"),
+                    currency=tickers._sur_to_rub(ticker.currency),
                 )
             )
         if len(candles) == 0:
