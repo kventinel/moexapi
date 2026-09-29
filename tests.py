@@ -252,6 +252,38 @@ class Tickers(unittest.TestCase):
 
 
 class Candles(unittest.TestCase):
+    def test_candle_currency_selection(self):
+        rub = candles_module.Candle(
+            datetime.datetime(2026, 9, 24, 10), datetime.datetime(2026, 9, 24, 11),
+            90, 94, 92, 93, 20, 160000, "RUB",
+        )
+        usd = dataclasses.replace(rub, volume=3, value=2700, currency="USD")
+        for first, second in ((rub, usd), (usd, rub)):
+            with self.subTest(first=first.currency):
+                result = candles_module._merge_candles_list([[first], [second]], "USD")
+                self.assertEqual(result, [usd])
+                self.assertEqual(
+                    candles_module._merge_candles_list([[first], [second]], "SUR"), [rub]
+                )
+                for preferred in ("EUR", None):
+                    with self.assertRaisesRegex(ValueError, "preferred currency is"):
+                        candles_module._merge_candles_list([[first], [second]], preferred)
+        merged = candles_module._merge_candles_list([[usd], [usd]], "USD")
+        self.assertEqual((merged[0].value, merged[0].volume), (5400, 6))
+        later = dataclasses.replace(rub, start=rub.end, end=rub.end + datetime.timedelta(hours=1))
+        self.assertEqual(candles_module._merge_candles_list([[usd], [later]], "EUR"),
+                         [usd, later])
+
+    def test_parse_candles_passes_preferred_currency(self):
+        ticker = mock.Mock(boards=["TQCB", "TQOD"], currency="USD")
+        rub = candles_module.Candle(
+            datetime.datetime(2026, 9, 24, 10), datetime.datetime(2026, 9, 24, 11),
+            90, 94, 92, 93, 20, 160000, "RUB",
+        )
+        usd = dataclasses.replace(rub, currency="USD", value=2700)
+        with mock.patch("moexapi.candles._parse_candles_one_board", side_effect=[[rub], [usd]]):
+            self.assertEqual(candles_module._parse_candles(ticker), [usd])
+
     def test_foreign_currency_turnover_keeps_source_currency(self):
         ticker = mock.Mock(secid="RU000A109Z01", market=moexapi.Markets.BONDS, currency="CNY")
         response = {"candles": {
@@ -363,6 +395,72 @@ class Candles(unittest.TestCase):
 
 
 class History(unittest.TestCase):
+    def test_mixed_history_currencies_require_preferred_currency(self):
+        date = datetime.date(2026, 9, 24)
+        columns = ["TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+                   "NUMTRADES", "VOLUME", "VALUE", "CURRENCYID"]
+        rub = [date.isoformat(), "TQCB", 90, 94, 92, 93, 10, 20, 160000, "SUR"]
+        usd = [date.isoformat(), "TQOD", 91, 95, 93, 94, 2, 3, 2700, "USD"]
+        for preferred in ("EUR", None):
+            ticker = mock.Mock(secid="TEST", market=moexapi.Markets.BONDS,
+                               boards=["TQCB", "TQOD"], currency=preferred)
+            for rows in ([rub, usd], [usd, rub]):
+                with self.subTest(preferred=preferred, rows=rows), mock.patch(
+                    "moexapi.history.utils.json_api_call",
+                    return_value={"history": {"columns": columns, "data": rows}},
+                ):
+                    with self.assertRaisesRegex(
+                        ValueError, f"TEST on {date}: .*preferred currency is {preferred}"
+                    ):
+                        history_module._parse_history(ticker, date, date)
+
+    def test_bond_history_selects_one_turnover_currency_per_day(self):
+        date = datetime.date(2026, 9, 24)
+        columns = [
+            "TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+            "NUMTRADES", "VOLUME", "VALUE", "CURRENCYID",
+        ]
+        rub = [date.isoformat(), "TQCB", 90, 94, 92, 93, 10, 20, 160000, "SUR"]
+        usd = [date.isoformat(), "TQOD", 91, 95, 93, 94, 2, 3, 2700, "USD"]
+        usd_other = [date.isoformat(), "TQDU", 92, 96, 94, 95, 4, 5, 4600, "USD"]
+        ticker = mock.Mock(
+            secid="RU000A0JXTS9", market=moexapi.Markets.FEDERAL_BONDS,
+            boards=["TQCB", "TQOD", "TQDU"], currency="USD",
+        )
+        for rows in ([rub, usd, usd_other], [usd, usd_other, rub]):
+            with self.subTest(rows=rows), mock.patch(
+                "moexapi.history.utils.json_api_call",
+                return_value={"history": {"columns": columns, "data": rows}},
+            ):
+                result = history_module._parse_history(ticker, date, date)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].currency, "USD")
+            self.assertEqual((result[0].value, result[0].volume, result[0].numtrades),
+                             (7300, 8, 6))
+            self.assertEqual((result[0].low, result[0].high), (91, 96))
+
+        # Do not lose days on which only the RUB settlement board traded.
+        with mock.patch(
+            "moexapi.history.utils.json_api_call",
+            return_value={"history": {"columns": columns, "data": [rub]}},
+        ):
+            result = history_module._parse_history(ticker, date, date)
+        self.assertEqual((result[0].currency, result[0].value), ("RUB", 160000))
+
+    def test_history_does_not_recount_boards_on_repeated_page(self):
+        date = datetime.date(2026, 9, 24)
+        response = {"history": {
+            "columns": ["TRADEDATE", "BOARDID", "LOW", "HIGH", "OPEN", "CLOSE",
+                        "NUMTRADES", "VOLUME", "VALUE", "CURRENCYID"],
+            "data": [[date.isoformat(), "TQOD", 90, 94, 92, 93, 2, 3, 2700, "USD"]],
+        }}
+        ticker = mock.Mock(secid="RU000A0JXTS9", market=moexapi.Markets.BONDS,
+                           boards=["TQOD"], currency="USD")
+        with mock.patch("moexapi.history.utils.json_api_call", return_value=response):
+            result = history_module._parse_history(ticker, date - datetime.timedelta(days=1), date)
+        self.assertEqual(len(result), 1)
+        self.assertEqual((result[0].value, result[0].volume), (2700, 3))
+
     def test_foreign_currency_bond_turnover_keeps_source_currency(self):
         date = datetime.date(2026, 9, 24)
         response = {

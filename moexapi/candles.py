@@ -71,7 +71,10 @@ class Candle:
             self.volume /= mult
 
 
-def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
+def _merge_candles(
+    first: list[Candle], second: list[Candle], preferred_currency: T.Optional[str] = None,
+) -> list[Candle]:
+    preferred_currency = tickers._sur_to_rub(preferred_currency)
     i = 0
     j = 0
     result: list[Candle] = []
@@ -83,7 +86,18 @@ def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
             result.append(second[j])
             j += 1
         else:
-            result.append(Candle.merge(first[i], second[j]))
+            if first[i].currency == second[j].currency:
+                result.append(Candle.merge(first[i], second[j]))
+            elif second[j].currency == preferred_currency:
+                result.append(second[j])
+            elif first[i].currency == preferred_currency:
+                result.append(first[i])
+            else:
+                raise ValueError(
+                    f"Can't select candle currency at {first[i].start}: "
+                    f"{first[i].currency} and {second[j].currency}; "
+                    f"preferred currency is {preferred_currency}"
+                )
             i += 1
             j += 1
     if i < len(first):
@@ -93,12 +107,14 @@ def _merge_candles(first: list[Candle], second: list[Candle]) -> list[Candle]:
     return result
 
 
-def _merge_candles_list(candles: list[list[Candle]]) -> list[Candle]:
+def _merge_candles_list(
+    candles: list[list[Candle]], preferred_currency: T.Optional[str] = None,
+) -> list[Candle]:
     if len(candles) == 0:
         return []
     result = candles[0]
     for idx in range(1, len(candles)):
-        result = _merge_candles(result, candles[idx])
+        result = _merge_candles(result, candles[idx], preferred_currency)
     return result
 
 
@@ -164,7 +180,7 @@ def _parse_candles(
         candles.append(
             _parse_candles_one_board(ticker, board, start_date=start_date, end_date=end_date, interval=interval)
         )
-    return _merge_candles_list(candles)
+    return _merge_candles_list(candles, ticker.currency)
 
 
 def get_candles(
@@ -179,7 +195,7 @@ def get_candles(
     candles = []
     for t in prev_tickers:
         candles.append(_parse_candles(t, start_date=start_date, end_date=end_date, interval=interval))
-    result = _merge_candles_list(candles)
+    result = _merge_candles_list(candles, ticker.currency)
     for split in ticker_splits:
         for candle in result:
             if candle.end.date() < split.date:

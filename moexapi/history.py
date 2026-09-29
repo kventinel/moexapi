@@ -113,8 +113,12 @@ def _parse_history(
     start_date: T.Optional[datetime.date] = None,
     end_date: T.Optional[datetime.date] = None,
 ) -> list[History]:
+    # Bond denomination and board settlement currency can differ. Keep one
+    # turnover currency per day, preferring the ticker currency when available.
+    preferred_currency = tickers._sur_to_rub(ticker.currency)
     result: list[History] = []
     prev_date = start_date
+    boards = []
     while True:
         start_str = f"from={start_date.isoformat()}" if start_date else ""
         end_str = f"till={end_date.isoformat()}" if end_date else ""
@@ -122,7 +126,6 @@ def _parse_history(
         url = f"https://iss.moex.com/iss/history{ticker.market.path}/securities/{ticker.secid}.json{query}"
         response = utils.json_api_call(url)
         history = utils.prepare_dict(response, "history")
-        boards = []
         for line in history:
             board = line["BOARDID"]
             if ticker.boards and board not in ticker.boards:
@@ -158,7 +161,16 @@ def _parse_history(
                 if board in boards:
                     continue
                 boards.append(board)
-                result[-1] = History.merge(result[-1], item)
+                if result[-1].currency == item.currency:
+                    result[-1] = History.merge(result[-1], item)
+                elif item.currency == preferred_currency:
+                    result[-1] = item
+                elif result[-1].currency != preferred_currency:
+                    raise ValueError(
+                        f"Can't select history currency for {ticker.secid} on {date}: "
+                        f"{result[-1].currency} and {item.currency}; "
+                        f"preferred currency is {preferred_currency}"
+                    )
             else:
                 boards = [board]
                 result.append(item)
