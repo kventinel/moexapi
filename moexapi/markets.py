@@ -100,7 +100,7 @@ _ALL = Market("all")
 _STOCK = Market("stock", parent=_ALL, engines={"stock"})
 _EQUITY = Market("equity", parent=_STOCK, markets={"shares"})
 _SHARES = Market("shares", parent=_EQUITY, security_types={"common_share", "preferred_share", "depositary_receipt"})
-_ETFS = Market("etfs", parent=_EQUITY, security_types={"exchange_ppif"})
+_ETFS = Market("etfs", parent=_EQUITY, security_types={"exchange_ppif", "etf_ppif"})
 _BONDS = Market("bonds", parent=_STOCK, markets={"bonds"})
 _FEDERAL_BONDS = Market(
     "federal bonds",
