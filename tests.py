@@ -138,6 +138,30 @@ class Tickers(unittest.TestCase):
         lkoh2 = moexapi.get_ticker("RU0009024277")
         self.assertEqual(lkoh1.isin, lkoh2.isin)
 
+    def test_etf_listings_include_historical_open_ended_funds(self):
+        response = {
+            "securities": {
+                "columns": ["secid", "shortname", "isin", "primary_boardid",
+                            "is_traded", "type"],
+                "data": [
+                    ["RSTR", "RTS Standard", "RU000A0JQYF0", "EQBR", 0, "public_ppif"],
+                    ["FXRB", "FXRB ETF", "IE00B7L7CP77", "TQTF", 0, "etf_ppif"],
+                    ["SBMX", "SBMX ETF", "RU000A0ZZH92", "TQTF", 1, "exchange_ppif"],
+                    ["CLOSED", "Closed fund", "CLOSEDISIN", "EQBR", 0, "private_ppif"],
+                    ["SHARE", "Ordinary share", "SHAREISIN", "TQBR", 1, "common_share"],
+                ],
+            },
+        }
+        empty = {"securities": {"columns": response["securities"]["columns"], "data": []}}
+        tickers_module._parse_tickers.cache_clear()
+        self.addCleanup(tickers_module._parse_tickers.cache_clear)
+        with mock.patch("moexapi.tickers.utils.json_api_call", side_effect=[response, empty]):
+            listings = tickers_module._parse_tickers(moexapi.Markets.ETFS)
+        self.assertEqual([item.secid for item in listings], ["RSTR", "FXRB", "SBMX"])
+        self.assertEqual(listings[0].board, "EQBR")
+        self.assertFalse(listings[0].is_traded)
+        self.assertTrue(all(item.market == moexapi.Markets.ETFS for item in listings))
+
     def test_etfs(self):
         moexapi.get_ticker("CNYM", market=moexapi.Markets.ETFS)
         tmos = moexapi.get_ticker("TMOS", market=moexapi.Markets.ETFS)
