@@ -793,6 +793,42 @@ class Bonds(unittest.TestCase):
         self.assertEqual(len(bond.coupons), 1)
         self.assertIsNone(bond.coupons[0].start_date)
 
+    def test_amortization_totals(self):
+        ticker = mock.Mock(secid="RU000A10CW87", shortname="РКСЭталон6")
+        info = {
+            "NAME": "Test", "ISSUEDATE": "2025-01-01", "INITIALFACEVALUE": 1000,
+            "ISSUESIZE": 1, "FACEVALUE": 1000, "ISQUALIFIEDINVESTORS": 0,
+        }
+        for payments, expected in [
+            ([500, 499.57], [500, 499.57]),
+            ([500, 500], [500, 500]),
+            ([333.33, 333.33, 333.33], [1000 / 3] * 3),
+            ([500, 501], None),
+            ([], []),
+        ]:
+            page = {
+                "amortizations": {
+                    "columns": ["amortdate", "value", "initialfacevalue"],
+                    "data": [[f"2027-0{i + 1}-01", value, 1000]
+                             for i, value in enumerate(payments)],
+                },
+                "coupons": {"columns": [], "data": []},
+                "offers": {"columns": [], "data": []},
+            }
+            with (
+                self.subTest(payments=payments),
+                mock.patch("moexapi.bonds.tickers.get_ticker_info_dict", return_value=info),
+                mock.patch("moexapi.bonds.utils.json_api_call", return_value=page),
+            ):
+                if expected is None:
+                    with self.assertRaisesRegex(ValueError, "greater than"):
+                        moexapi.Bond(ticker)
+                else:
+                    bond = moexapi.Bond(ticker)
+                    self.assertEqual(len(bond.amortization), len(expected))
+                    for item, value in zip(bond.amortization, expected):
+                        self.assertAlmostEqual(item.value, value)
+
     def test_bonds(self):
         bond = moexapi.Bond(moexapi.get_ticker("ОФЗ26238", market=moexapi.Markets.BONDS))
         self.assertEqual(bond.issue_date, datetime.date(2021, 6, 16))

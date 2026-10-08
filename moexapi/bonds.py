@@ -139,12 +139,22 @@ class Bond:
             if abs(amortization_sum - self.initial_face_value) > 1e-9 and len(original_values) > 1:
                 values = [value / amortization_sum * self.initial_face_value for value in original_values]
                 rounded_values = [round(value + 1e-9, 2) for value in values]
-                for original_value, rounded_value in zip(original_values, rounded_values):
-                    if abs(original_value - rounded_value) > 1e-9:
-                        logger.error(f"Original value {original_value} is not equal to rounded value {rounded_value}")
-                        raise ValueError(f"Amortization sum {amortization_sum} is greater than initial face value {self.initial_face_value}")
-                for amortization_item, value in zip(self.amortization, values):
-                    amortization_item.value = value
+                if all(abs(original - rounded) <= 1e-9
+                       for original, rounded in zip(original_values, rounded_values)):
+                    # Correct only differences attributable to payment rounding.
+                    for amortization_item, value in zip(self.amortization, values):
+                        amortization_item.value = value
+                elif amortization_sum > self.initial_face_value:
+                    raise ValueError(
+                        f"Amortization sum {amortization_sum} is greater than initial face value {self.initial_face_value}"
+                    )
+                else:
+                    # Incomplete or discounted repayment schedules must retain
+                    # their published cash flows rather than inventing principal.
+                    logger.warning(
+                        "%s: Amortization sum %s is less than initial face value %s; keeping published payments",
+                        self.secid, amortization_sum, self.initial_face_value,
+                    )
         except Exception as e:
             logger.error(f"{ticker.secid} ({ticker.shortname}): {e}")
             raise e
