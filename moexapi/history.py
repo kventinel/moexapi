@@ -40,6 +40,8 @@ class History:
     volume -- number of shares/bonds/currencies sold on the day
     value -- sum of all transactions in currency for the day
     currency -- currency of transaction value
+    accrued_interest -- accrued coupon cash per security in currency, or None
+                        when ISS does not supply it (not a percent quote)
     """
     date: datetime.date
     low: float
@@ -51,11 +53,18 @@ class History:
     volume: T.Optional[int]
     value: T.Optional[float]
     currency: T.Optional[str] = None
+    accrued_interest: T.Optional[float] = None
 
     @classmethod
     def merge(cls, first: 'History', second: 'History'):
         assert first.date == second.date
         assert first.currency == second.currency, "Can't merge history in different currencies"
+        accrued_interest = None
+        if first.accrued_interest is not None and second.accrued_interest is not None:
+            if not np.isclose(first.accrued_interest, second.accrued_interest):
+                raise ValueError(f"Conflicting accrued interest on {first.date}")
+            # This is cash per security, not turnover: never sum across boards.
+            accrued_interest = first.accrued_interest
         return cls(
             date=first.date,
             low=min(first.low, second.low),
@@ -67,6 +76,7 @@ class History:
             volume=_maybe_sum(first.volume, second.volume),
             value=_maybe_sum(first.value, second.value),
             currency=first.currency,
+            accrued_interest=accrued_interest,
         )
 
     def mult(self, mult: float) -> None:
@@ -75,6 +85,8 @@ class History:
         self.open *= mult
         self.close *= mult
         self.mid_price *= mult
+        if self.accrued_interest is not None:
+            self.accrued_interest *= mult
         if self.volume is not None:
             self.volume /= mult
 
@@ -156,6 +168,7 @@ def _parse_history(
                 volume=line.get("VOLUME"),
                 value=value,
                 currency=currency,
+                accrued_interest=line.get("ACCRUEDINT"),
             )
             if len(result) > 0 and result[-1].date == date:
                 if board in boards:
