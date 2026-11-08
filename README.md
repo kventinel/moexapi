@@ -26,7 +26,7 @@ Out[4]: [Candle(date=datetime.date(2023, 10, 2), low=165.51, high=168.86, open=1
 
 ### Bonds
 
-`get_history()` returns `History.accrued_interest` from ISS `ACCRUEDINT`.
+`get_history()` returns `History.accrued_interest` from the historical ISS `ACCINT` column.
 It is accrued coupon cash per security in `History.currency` (settlement
 currency), not a percentage or a ruble conversion. Missing values remain `None`;
 zero is a valid observation. Same-day board merges retain one matching value

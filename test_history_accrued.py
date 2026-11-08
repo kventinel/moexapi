@@ -12,7 +12,7 @@ class HistoryAccruedInterest(unittest.TestCase):
 
     def row(self, accrued, board="TQOB", currency="SUR", day=None):
         return dict(TRADEDATE=(day or self.day).isoformat(), BOARDID=board,
-                    CURRENCYID=currency, ACCRUEDINT=accrued,
+                    CURRENCYID=currency, ACCINT=accrued,
                     OPEN=100, LOW=99, HIGH=101, CLOSE=100, WAPRICE=100,
                     NUMTRADES=1, VOLUME=1, VALUE=1000)
 
@@ -35,8 +35,32 @@ class HistoryAccruedInterest(unittest.TestCase):
                 self.assertEqual(candle.currency, "RUB")
                 self.assertEqual(candle.close, 100)
         row = self.row(0)
-        del row["ACCRUEDINT"]
+        del row["ACCINT"]
         self.assertIsNone(self.parse([row])[0].accrued_interest)
+
+    def test_reported_rus27_history_through_get_history(self):
+        day = datetime.date(2017, 7, 19)
+        ticker = mock.Mock(secid="RU000A0JXTS9", market=Markets.FEDERAL_BONDS,
+                           currency="USD", boards=["EQOB", "TQOD"])
+        # Relevant columns from the real ISS response. The RUB board has no
+        # OHLC prices; the USD board has ACCINT even without trade counters.
+        rub = self.row(36446.8903, board="EQOB", day=day)
+        rub.update(OPEN=None, LOW=None, HIGH=None, CLOSE=None, NUMTRADES=0)
+        usd = self.row(613.8889, board="TQOD", currency="USD", day=day)
+        usd.update(OPEN=101, LOW=101, HIGH=101, CLOSE=101, WAPRICE=101,
+                   NUMTRADES=None, VOLUME=None, VALUE=None)
+        with (
+            mock.patch.object(history.utils, "json_api_call",
+                              return_value=self.response([rub, usd])),
+            mock.patch.object(history.changeover, "get_current_ticker", return_value=ticker),
+            mock.patch.object(history.changeover, "get_prev_tickers", return_value=[ticker]),
+            mock.patch.object(history.splits, "get_splits", return_value=[]),
+        ):
+            [candle] = history.get_history(ticker, day, day)
+        self.assertEqual(candle.date, day)
+        self.assertEqual(candle.currency, "USD")
+        self.assertEqual(candle.accrued_interest, 613.8889)
+        self.assertEqual(candle.close, 101)
 
     def test_board_and_currency_selection_also_select_accrued_interest(self):
         rub = self.row(5)

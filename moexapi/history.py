@@ -168,7 +168,9 @@ def _parse_history(
                 volume=line.get("VOLUME"),
                 value=value,
                 currency=currency,
-                accrued_interest=line.get("ACCRUEDINT"),
+                # Historical ISS rows use ACCINT; ACCRUEDINT belongs to
+                # current market data and is absent from bond history.
+                accrued_interest=line.get("ACCINT"),
             )
             if len(result) > 0 and result[-1].date == date:
                 if board in boards:
