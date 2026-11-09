@@ -829,6 +829,52 @@ class Bonds(unittest.TestCase):
                     for item, value in zip(bond.amortization, expected):
                         self.assertAlmostEqual(item.value, value)
 
+    def test_future_amortization_does_not_exceed_remaining_face_value(self):
+        today = datetime.date.today()
+        past = (today - datetime.timedelta(days=1)).isoformat()
+        future = (today + datetime.timedelta(days=180)).isoformat()
+        ticker = mock.Mock(secid="TEST", shortname="Test")
+        info = {
+            "NAME": "Test", "ISSUEDATE": "2000-01-01", "INITIALFACEVALUE": 1,
+            "ISSUESIZE": 1, "FACEVALUE": 0.035, "ISQUALIFIEDINVESTORS": 0,
+        }
+        rounded_history = [0.01] * 8 + [0.02] * 7 + [0.03] * 21 + [0.04] * 4
+        rounded_schedule = [
+            ((today - datetime.timedelta(days=i + 1)).isoformat(), value)
+            for i, value in enumerate(rounded_history)
+        ] + [
+            ((today + datetime.timedelta(days=180 * i)).isoformat(), 0.01)
+            for i in range(1, 8)
+        ]
+        for payments, rejected in [
+            # Historical repayment must not count against remaining face value.
+            ([(past, 0.965), (future, 0.035)], False),
+            ([(past, 0.965), (future, 0.034)], False),
+            # Even an exact whole-schedule total can overstate future principal.
+            ([(past, 0.93), (future, 0.07)], True),
+            ([(future, 0.07)], True),
+            # XS0114288789: normalization of 1.08 to 1 does not repair future flows.
+            (rounded_schedule, True),
+        ]:
+            page = {
+                "amortizations": {
+                    "columns": ["amortdate", "value", "initialfacevalue"],
+                    "data": [[date, value, 1] for date, value in payments],
+                },
+                "coupons": {"columns": [], "data": []},
+                "offers": {"columns": [], "data": []},
+            }
+            with (
+                self.subTest(payments=payments),
+                mock.patch("moexapi.bonds.tickers.get_ticker_info_dict", return_value=info),
+                mock.patch("moexapi.bonds.utils.json_api_call", return_value=page),
+            ):
+                if rejected:
+                    with self.assertRaisesRegex(ValueError, "Future amortization sum.*remaining face value"):
+                        moexapi.Bond(ticker)
+                else:
+                    moexapi.Bond(ticker)
+
     def test_bonds(self):
         bond = moexapi.Bond(moexapi.get_ticker("ОФЗ26238", market=moexapi.Markets.BONDS))
         self.assertEqual(bond.issue_date, datetime.date(2021, 6, 16))

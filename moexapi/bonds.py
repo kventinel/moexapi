@@ -155,6 +155,17 @@ class Bond:
                         "%s: Amortization sum %s is less than initial face value %s; keeping published payments",
                         self.secid, amortization_sum, self.initial_face_value,
                     )
+            # Whole-schedule rounding correction can still overstate the unpaid
+            # principal, especially for bonds with a small remaining face value.
+            today = datetime.date.today()
+            future_amortization_sum = sum(
+                item.value for item in self.amortization if item.date > today
+            )
+            if future_amortization_sum > self.face_value + 1e-9:
+                raise ValueError(
+                    f"Future amortization sum {future_amortization_sum} is greater than "
+                    f"remaining face value {self.face_value} for {self.secid}"
+                )
         except Exception as e:
             logger.error(f"{ticker.secid} ({ticker.shortname}): {e}")
             raise e

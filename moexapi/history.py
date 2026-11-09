@@ -37,7 +37,8 @@ class History:
     close -- close price of the day
     mid_price -- weighted average price of the day
     numtrades -- number of trades for the day
-    volume -- number of shares/bonds/currencies sold on the day
+    volume -- number of shares/bonds/currencies sold on the day; missing equity
+              and currency volume is estimated as value / mid_price when possible
     value -- sum of all transactions in currency for the day
     currency -- currency of transaction value
     accrued_interest -- accrued coupon cash per security in currency, or None
@@ -50,7 +51,7 @@ class History:
     close: float
     mid_price: float
     numtrades: int
-    volume: T.Optional[int]
+    volume: T.Optional[float]
     value: T.Optional[float]
     currency: T.Optional[str] = None
     accrued_interest: T.Optional[float] = None
@@ -157,15 +158,25 @@ def _parse_history(
             if ticker.market == markets.Markets.CURRENCY:
                 value = line.get("VOLRUR")
                 currency = "RUB"
+            mid_price = line.get('WAPRICE') or np.mean([low, high, open, close])
+            volume = line.get("VOLUME")
+            # Bond quotes are percentages of face value, not cash per security.
+            # Recover each board/day before merging or applying split adjustments.
+            if (volume is None
+                    and (markets.Markets.EQUITY.has(ticker.market)
+                         or ticker.market == markets.Markets.CURRENCY)
+                    and value is not None and np.isfinite(value) and value >= 0
+                    and np.isfinite(mid_price) and mid_price > 0):
+                volume = value / mid_price
             item = History(
                 date=date,
                 low=low,
                 high=high,
                 open=open,
                 close=close,
-                mid_price=line.get('WAPRICE') or np.mean([low, high, open, close]),
+                mid_price=mid_price,
                 numtrades=line.get("NUMTRADES") or 0,
-                volume=line.get("VOLUME"),
+                volume=volume,
                 value=value,
                 currency=currency,
                 # Historical ISS rows use ACCINT; ACCRUEDINT belongs to
