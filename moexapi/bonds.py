@@ -18,6 +18,10 @@ def _max(first, second):
     return second
 
 
+class InvalidAmortizationError(ValueError):
+    """Published principal repayments exceed the initial or remaining face value."""
+
+
 @dataclasses.dataclass
 class Amortization:
     date: datetime.date
@@ -145,7 +149,7 @@ class Bond:
                     for amortization_item, value in zip(self.amortization, values):
                         amortization_item.value = value
                 elif amortization_sum > self.initial_face_value:
-                    raise ValueError(
+                    raise InvalidAmortizationError(
                         f"Amortization sum {amortization_sum} is greater than initial face value {self.initial_face_value}"
                     )
                 else:
@@ -162,7 +166,7 @@ class Bond:
                 item.value for item in self.amortization if item.date > today
             )
             if future_amortization_sum > self.face_value + 1e-9:
-                raise ValueError(
+                raise InvalidAmortizationError(
                     f"Future amortization sum {future_amortization_sum} is greater than "
                     f"remaining face value {self.face_value} for {self.secid}"
                 )

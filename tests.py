@@ -821,7 +821,7 @@ class Bonds(unittest.TestCase):
                 mock.patch("moexapi.bonds.utils.json_api_call", return_value=page),
             ):
                 if expected is None:
-                    with self.assertRaisesRegex(ValueError, "greater than"):
+                    with self.assertRaises(moexapi.InvalidAmortizationError):
                         moexapi.Bond(ticker)
                 else:
                     bond = moexapi.Bond(ticker)
@@ -870,7 +870,7 @@ class Bonds(unittest.TestCase):
                 mock.patch("moexapi.bonds.utils.json_api_call", return_value=page),
             ):
                 if rejected:
-                    with self.assertRaisesRegex(ValueError, "Future amortization sum.*remaining face value"):
+                    with self.assertRaises(moexapi.InvalidAmortizationError):
                         moexapi.Bond(ticker)
                 else:
                     moexapi.Bond(ticker)
