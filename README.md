@@ -47,3 +47,17 @@ The estimate requires finite nonnegative turnover and a finite positive price;
 if turnover is also unavailable, volume remains `None`. Bond volume is not
 estimated this way because bond prices are percentage-of-face-value quotes.
 Recovery precedes board merging and split adjustments.
+
+### Unreported historical splits
+
+For equity `get_history()`, prices are also checked against same-date daily
+ISS candles (`interval=24`). ISS may adjust candle OHLC for a split missing
+from its split directory, while historical OHLC and candle volumes retain
+their original scale. When all four OHLC ratios agree on a whole-number split
+or consolidation, history prices (including `mid_price`) and volumes are
+adjusted accordingly; turnover and trade counts are preserved. Reported
+split factors are accounted for to avoid double adjustment. This also works
+for a requested range entirely before the action and for former tickers.
+This check loads daily candles for the requested equity history in addition
+to the history endpoint. Missing candles or inconsistent ratios provide no
+additional adjustment; a price jump alone never triggers a correction.

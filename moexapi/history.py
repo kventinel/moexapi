@@ -6,6 +6,7 @@ import datetime
 
 import numpy as np
 
+from . import candles as candles_api
 from . import changeover
 from . import markets
 from . import splits
@@ -206,6 +207,51 @@ def _parse_history(
     return result
 
 
+def _adjust_unreported_splits(
+    ticker: tickers.Ticker, history: list[History], reported: list[splits.Split],
+) -> None:
+    """Recover missing equity adjustments from same-day ISS daily candles.
+
+    ISS candles can have split-adjusted OHLC even when the split directory
+    omits an action. History prices and both endpoints' volumes remain on
+    their original scale. Require all four matching OHLC ratios to agree;
+    a large price move between different dates is never evidence of a split.
+    """
+    if not history or not markets.Markets.EQUITY.has(ticker.market):
+        return
+    daily = candles_api._parse_candles(
+        ticker, start_date=history[0].date.isoformat(),
+        end_date=history[-1].date.isoformat(), interval=24,
+    )
+    by_date = {candle.start.date(): candle for candle in daily}
+    for item in history:
+        candle = by_date.get(item.date)
+        if candle is None:
+            continue
+        original = np.array([item.open, item.low, item.high, item.close], dtype=float)
+        adjusted = np.array([candle.open, candle.low, candle.high, candle.close], dtype=float)
+        if (not np.isfinite(original).all() or not np.isfinite(adjusted).all()
+                or np.any(original <= 0) or np.any(adjusted <= 0)):
+            continue
+        ratios = original / adjusted
+        factor = float(ratios[0])
+        if not np.allclose(ratios, factor, rtol=1e-8, atol=0):
+            continue
+        # Accept only a whole-number split/consolidation confirmed by ISS.
+        magnitude = factor if factor >= 1 else 1 / factor
+        if magnitude < 2 or not np.isclose(magnitude, round(magnitude), rtol=1e-8, atol=0):
+            continue
+        factor = float(round(magnitude)) if factor >= 1 else 1 / round(magnitude)
+        known = 1.0
+        for action in reported:
+            if action.secid == ticker.secid and item.date < action.date:
+                known *= action.mult
+        if np.isclose(factor, known, rtol=1e-8, atol=0):
+            continue
+        # The ordinary split pass below still applies the reported actions.
+        item.mult(known / factor)
+
+
 def get_history(
     ticker: tickers.Ticker,
     start_date: T.Optional[datetime.date] = None,
@@ -216,7 +262,9 @@ def get_history(
     ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
     candles = []
     for t in prev_tickers:
-        candles.append(_parse_history(t, start_date=start_date, end_date=end_date))
+        series = _parse_history(t, start_date=start_date, end_date=end_date)
+        _adjust_unreported_splits(t, series, ticker_splits)
+        candles.append(series)
     result = _merge_history_list(candles)
     for split in ticker_splits:
         for candle in result:
