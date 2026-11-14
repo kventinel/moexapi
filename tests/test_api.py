@@ -601,33 +601,24 @@ class Exchange(unittest.TestCase):
 class Dividends(unittest.TestCase):
     def test_dividends(self):
         ticker = mock.Mock(secid="CHMF")
-        response = {
-            "dividends": {
-                "columns": ["secid", "registryclosedate", "value"],
-                "data": [["CHMF", "2024-06-18", 191.51]],
-            },
-        }
+        payment = moexapi.Dividend(date=datetime.date(2024, 6, 18), value=191.51)
         with (
             mock.patch("moexapi.dividends.changeover.get_current_ticker", return_value=ticker),
             mock.patch("moexapi.dividends.changeover.get_prev_tickers", return_value=[ticker]),
-            mock.patch("moexapi.dividends.splits.get_splits", return_value=[]),
-            mock.patch("moexapi.dividends.utils.json_api_call", return_value=response),
+            mock.patch("moexapi.dividends.smartlab.get_dividends", return_value=[payment]) as load,
         ):
-            dividends = moexapi.get_dividends(ticker)
+            self.assertEqual(moexapi.get_dividends(ticker), [payment])
+        load.assert_called_once_with({"CHMF"})
 
-        self.assertEqual(
-            dividends,
-            [moexapi.Dividend(date=datetime.date(2024, 6, 18), value=191.51)],
-        )
-
-    def test_missing_dividends_block(self):
+    def test_unavailable_smartlab_history_is_not_empty_history(self):
         ticker = mock.Mock(secid="CHMF")
-        with mock.patch(
-            "moexapi.dividends.utils.json_api_call",
-            return_value={"description": {}, "boards": {}},
+        with (
+            mock.patch("moexapi.dividends.changeover.get_current_ticker", return_value=ticker),
+            mock.patch("moexapi.dividends.changeover.get_prev_tickers", return_value=[ticker]),
+            mock.patch("moexapi.dividends.smartlab.get_dividends", side_effect=ValueError("Missing dividend table")),
         ):
-            with self.assertRaisesRegex(ValueError, "Missing dividends table for CHMF"):
-                moexapi.dividends._get_dividends_for_one_ticker(ticker)
+            with self.assertRaisesRegex(ValueError, "Missing dividend table"):
+                moexapi.get_dividends(ticker)
 
 
 class Bonds(unittest.TestCase):

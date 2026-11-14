@@ -53,8 +53,8 @@ def test_history_candles_and_dividends_share_belu_units(candle_factor):
         patch.object(history.changeover, 'get_prev_tickers', return_value=[ticker]),
         patch.object(history, '_parse_history', side_effect=lambda *a, **kw: raw_history()),
         patch.object(candles, '_parse_candles', side_effect=lambda *a, **kw: raw_candles()),
-        patch.object(dividends, '_get_dividends_for_one_ticker',
-                     return_value=[dividends.Dividend(days[0], 224),
+        patch.object(dividends.smartlab, 'get_dividends',
+                     return_value=[dividends.Dividend(days[0], 28),
                                    dividends.Dividend(days[1], 25),
                                    dividends.Dividend(days[2], 26)]),
     ):

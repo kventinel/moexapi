@@ -2,9 +2,8 @@ import dataclasses
 import datetime
 
 from . import changeover
-from . import splits
+from . import smartlab
 from . import tickers
-from . import utils
 
 
 @dataclasses.dataclass
@@ -16,34 +15,14 @@ class Dividend:
 Dividends = list[Dividend]
 
 
-def _get_dividends_for_one_ticker(ticker: tickers.Ticker):
-    response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{ticker.secid}/dividends.json")
-    resp = response.get('dividends')
-    if resp is None:
-        raise ValueError(
-            f"Missing dividends table for {ticker.secid}; "
-            "the response does not establish that no dividends were paid"
-        )
-    columns = resp['columns']
-    data = resp['data']
-    dividends: Dividends = []
-    for line in data:
-        date = datetime.date.fromisoformat(line[columns.index('registryclosedate')])
-        if date > datetime.date.today():
-            continue
-        dividends.append(Dividend(date=date, value=line[columns.index('value')]))
-    return dividends
-
-
 def get_dividends(ticker: tickers.Ticker) -> Dividends:
+    """Get public Smart-Lab dividends in current-share units.
+
+    Dates are shareholder record dates and amounts are already restated after
+    splits. Missing or malformed source pages raise errors.
+    """
     ticker = changeover.get_current_ticker(ticker)
     prev_tickers = changeover.get_prev_tickers(ticker)
-    dividends = []
-    for ticker in prev_tickers:
-        dividends.extend(_get_dividends_for_one_ticker(ticker))
-    ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
-    for split in ticker_splits:
-        for dividend in dividends:
-            if dividend.date < split.date:
-                dividend.value /= split.mult
-    return dividends
+    secids = {ticker.secid, *(previous.secid for previous in prev_tickers)}
+    return [Dividend(date=payment.date, value=payment.value)
+            for payment in smartlab.get_dividends(secids)]

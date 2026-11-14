@@ -56,3 +56,24 @@ and volumes are adjusted separately; turnover and trade counts are preserved.
 This requires additional ISS requests. Missing or inconsistent reference data
 does not trigger inferred adjustments. Manual overrides cover corporate actions
 that cannot be inferred from prices, including split metadata and dividends.
+
+### Dividends from Smart-Lab
+
+`get_dividends(ticker)` reads the public [Smart-Lab calendar](https://smart-lab.ru/dividends/index?is_approved=1&year=2023&quarter=)
+for equity instruments; no API token or subscription is required. Each reporting-period
+page is cached once per process/day and reused across tickers. Calendar periods
+from 2003 through the current year are read because the period year is not the
+record-date year, and retained earnings can be distributed later. Coverage is
+sparse in early years; absence from this source is not independent proof that
+an issuer paid no dividends.
+
+Columns are matched by their headers, including the extra `СД` (board
+recommendation) column. Status comes from the row: approved/recommended rows
+are included, forecasts and cancelled rows are excluded even when returned
+by `is_approved=1`. Only record dates through today are returned; `Купить До`
+and `Выплата До` are not used as record dates. Decimal commas and spacing are
+normalized, old/current ticker aliases are merged, and amounts supplied by
+Smart-Lab are preserved without applying MOEX split factors a second time.
+For example, the 2023-period page contains SBER's 33.3 RUB record on 2024-07-11.
+Requests and malformed pages raise errors rather than becoming empty histories.
+The obsolete ISS securities dividend endpoint is not used.
