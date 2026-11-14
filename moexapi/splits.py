@@ -37,6 +37,11 @@ def get_splits() -> list[Split]:
         # https://www.moex.com/en/index/vtbmm: effective 2020-03-23,
         # first resumed exchange observation 2020-03-24. LQDT's old code.
         Split(date=datetime.date(2020, 3, 23), secid='VTBM', mult=1000),
+        # Seven bonus shares per original share, in current ordinary-share units.
+        # https://novabev.com/investors/shareholder-center/stock-split-faqs/
+        # Bonus shares were temporarily restricted; this adjustment marks them
+        # at ordinary-share prices rather than modeling sale availability.
+        Split(date=datetime.date(2024, 8, 20), secid='BELU', mult=8),
     ]
     for documented_split in documented:
         existing = [s for s in result if s.secid == documented_split.secid and s.date == documented_split.date]

@@ -31,6 +31,7 @@ def test_documented_splits_are_preserved():
         splits.Split(datetime.date(2014, 12, 30), 'IRAO', 0.01),
         splits.Split(datetime.date(2022, 10, 12), 'RU000A102N77', 3),
         splits.Split(datetime.date(2020, 3, 23), 'VTBM', 1000),
+        splits.Split(datetime.date(2024, 8, 20), 'BELU', 8),
     ]
 
 
