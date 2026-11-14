@@ -74,6 +74,23 @@ class HistoryAccruedInterest(unittest.TestCase):
         self.assertEqual(candle.accrued_interest, 5)
         self.assertEqual(candle.currency, "RUB")
 
+    def test_historical_accint_field_and_alias_validation(self):
+        for amount in (613.8889, 0, None):
+            row = self.row(amount, board="TQOD", currency="USD")
+            [candle] = self.parse([row], preferred="USD")
+            self.assertEqual(candle.accrued_interest, amount)
+            self.assertEqual(candle.currency, "USD")
+        row = self.row(5)
+        row["ACCRUEDINT"] = row.pop("ACCINT")
+        self.assertEqual(self.parse([row])[0].accrued_interest, 5)
+        row["ACCINT"] = 5
+        self.assertEqual(self.parse([row])[0].accrued_interest, 5)
+        row["ACCINT"] = None
+        self.assertEqual(self.parse([row])[0].accrued_interest, 5)
+        row["ACCINT"] = 6
+        with self.assertRaisesRegex(ValueError, "Conflicting accrued interest fields"):
+            self.parse([row])
+
     def test_merging_boards_preserves_cash_per_security_without_summing(self):
         [candle] = self.parse([self.row(5), self.row(5, board="TQCB")])
         self.assertEqual(candle.accrued_interest, 5)

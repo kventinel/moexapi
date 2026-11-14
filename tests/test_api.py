@@ -327,7 +327,7 @@ class Candles(unittest.TestCase):
             candles_module.Candle.merge(result[0], other)
 
     def test_split_adjusts_prices_and_volume_but_preserves_turnover(self):
-        ticker = mock.Mock(secid="TEST")
+        ticker = mock.Mock(secid="TEST", market=moexapi.Markets.SHARES)
         before = candles_module.Candle(
             datetime.datetime(2020, 1, 1), datetime.datetime(2020, 1, 1, 23),
             90, 110, 100, 100, 10, 1000,
@@ -343,6 +343,7 @@ class Candles(unittest.TestCase):
                 moexapi.Split(datetime.date(2020, 1, 2), "TEST", 10)
             ]),
             mock.patch("moexapi.candles._parse_candles", return_value=[before, after]),
+            mock.patch("moexapi.history._parse_history", return_value=[]),
         ):
             result = moexapi.get_candles(ticker)
 
@@ -625,9 +626,8 @@ class Dividends(unittest.TestCase):
             "moexapi.dividends.utils.json_api_call",
             return_value={"description": {}, "boards": {}},
         ):
-            dividends = moexapi.dividends._get_dividends_for_one_ticker(ticker)
-
-        self.assertEqual(dividends, [])
+            with self.assertRaisesRegex(ValueError, "Missing dividends table for CHMF"):
+                moexapi.dividends._get_dividends_for_one_ticker(ticker)
 
 
 class Bonds(unittest.TestCase):

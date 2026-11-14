@@ -26,6 +26,16 @@ def _maybe_mean(first, second):
     return np.mean([item for item in [first, second] if item is not None])
 
 
+def _accrued_interest(line):
+    # Historical ISS bond rows use ACCINT; some responses use ACCRUEDINT.
+    # Both are cash per security in the selected row's settlement currency.
+    historical = line.get("ACCINT")
+    alternate = line.get("ACCRUEDINT")
+    if historical is not None and alternate is not None and not np.isclose(historical, alternate):
+        raise ValueError(f"Conflicting accrued interest fields on {line.get('TRADEDATE')}")
+    return historical if historical is not None else alternate
+
+
 @dataclasses.dataclass
 class History:
     """
@@ -180,9 +190,7 @@ def _parse_history(
                 volume=volume,
                 value=value,
                 currency=currency,
-                # Historical ISS rows use ACCINT; ACCRUEDINT belongs to
-                # current market data and is absent from bond history.
-                accrued_interest=line.get("ACCINT"),
+                accrued_interest=_accrued_interest(line),
             )
             if len(result) > 0 and result[-1].date == date:
                 if board in boards:
@@ -228,20 +236,9 @@ def _adjust_unreported_splits(
         candle = by_date.get(item.date)
         if candle is None:
             continue
-        original = np.array([item.open, item.low, item.high, item.close], dtype=float)
-        adjusted = np.array([candle.open, candle.low, candle.high, candle.close], dtype=float)
-        if (not np.isfinite(original).all() or not np.isfinite(adjusted).all()
-                or np.any(original <= 0) or np.any(adjusted <= 0)):
+        factor = candles_api._split_price_factor(item, candle)
+        if factor == 1:
             continue
-        ratios = original / adjusted
-        factor = float(ratios[0])
-        if not np.allclose(ratios, factor, rtol=1e-8, atol=0):
-            continue
-        # Accept only a whole-number split/consolidation confirmed by ISS.
-        magnitude = factor if factor >= 1 else 1 / factor
-        if magnitude < 2 or not np.isclose(magnitude, round(magnitude), rtol=1e-8, atol=0):
-            continue
-        factor = float(round(magnitude)) if factor >= 1 else 1 / round(magnitude)
         known = 1.0
         for action in reported:
             if action.secid == ticker.secid and item.date < action.date:

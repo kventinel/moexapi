@@ -26,10 +26,25 @@ def get_splits() -> list[Split]:
                 mult=line["after"] / line["before"],
             )
         )
-    # Retain the pre-existing consolidation missing from the ISS split feed.
-    irao = Split(date=datetime.date(2014, 12, 30), secid="IRAO", mult=0.01)
-    if not any((split.date, split.secid) == (irao.date, irao.secid) for split in result):
-        result.insert(0, irao)
+    # Actions absent from the ISS split feed. Keep these for raw candle
+    # prices, volume, dividends, and the public split directory.
+    documented = [
+        Split(date=datetime.date(2014, 12, 30), secid='IRAO', mult=0.01),
+        # Issuer announcement and MOEX notice: 1:3 on 2022-10-12.
+        # https://www.wimsavings.ru/ru/about/news/138196/
+        # https://www.moex.com/n51350/?nt=111
+        Split(date=datetime.date(2022, 10, 12), secid='RU000A102N77', mult=3),
+        # https://www.moex.com/en/index/vtbmm: effective 2020-03-23,
+        # first resumed exchange observation 2020-03-24. LQDT's old code.
+        Split(date=datetime.date(2020, 3, 23), secid='VTBM', mult=1000),
+    ]
+    for documented_split in documented:
+        existing = [s for s in result if s.secid == documented_split.secid and s.date == documented_split.date]
+        if existing:
+            if any(s.mult != documented_split.mult for s in existing):
+                raise ValueError(f'Conflicting documented split for {documented_split.secid}')
+        else:
+            result.append(documented_split)
     return result
 
 

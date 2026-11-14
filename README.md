@@ -61,3 +61,12 @@ for a requested range entirely before the action and for former tickers.
 This check loads daily candles for the requested equity history in addition
 to the history endpoint. Missing candles or inconsistent ratios provide no
 additional adjustment; a price jump alone never triggers a correction.
+
+For equity `get_candles()` with known splits, daily candle OHLC is compared
+with same-date history before applying adjustments. Prices already adjusted
+by ISS are accounted for separately from volume, which stays in original
+units in the response. Intraday and longer intervals use daily reference
+candles. When matching history is unavailable or the ratios are inconsistent,
+the known split adjustment is applied as before. Documented overrides remain
+necessary for actions whose candle prices are unadjusted, including IRAO
+and RU000A102N77, and for split metadata and dividends.

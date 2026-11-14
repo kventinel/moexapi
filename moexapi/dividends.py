@@ -20,7 +20,10 @@ def _get_dividends_for_one_ticker(ticker: tickers.Ticker):
     response = utils.json_api_call(f"https://iss.moex.com/iss/securities/{ticker.secid}/dividends.json")
     resp = response.get('dividends')
     if resp is None:
-        return []
+        raise ValueError(
+            f"Missing dividends table for {ticker.secid}; "
+            "the response does not establish that no dividends were paid"
+        )
     columns = resp['columns']
     data = resp['data']
     dividends: Dividends = []

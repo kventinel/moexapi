@@ -4,7 +4,10 @@ import concurrent.futures
 import dataclasses
 import datetime
 
+import numpy as np
+
 from . import changeover
+from . import markets
 from . import splits
 from . import tickers
 from . import utils
@@ -183,6 +186,59 @@ def _parse_candles(
     return _merge_candles_list(candles, ticker.currency)
 
 
+def _split_price_factor(original, adjusted):
+    """Return a whole-number OHLC adjustment confirmed by all four prices."""
+    original = np.array([original.open, original.low, original.high, original.close], dtype=float)
+    adjusted = np.array([adjusted.open, adjusted.low, adjusted.high, adjusted.close], dtype=float)
+    if (not np.isfinite(original).all() or not np.isfinite(adjusted).all()
+            or np.any(original <= 0) or np.any(adjusted <= 0)):
+        return 1.0
+    ratios = original / adjusted
+    factor = float(ratios[0])
+    if not np.allclose(ratios, factor, rtol=1e-8, atol=0):
+        return 1.0
+    magnitude = factor if factor >= 1 else 1 / factor
+    if magnitude < 2 or not np.isclose(magnitude, round(magnitude), rtol=1e-8, atol=0):
+        return 1.0
+    return float(round(magnitude)) if factor >= 1 else 1 / round(magnitude)
+
+
+def _adjust_candle_splits(ticker, candles, actions, interval):
+    affected = [c for c in candles if any(c.end.date() < s.date for s in actions)]
+    if not affected:
+        return
+    price_factors = {}
+    if markets.Markets.EQUITY.has(ticker.market):
+        # Import here because history also uses the raw candle parser.
+        from . import history
+
+        start = min(c.start.date() for c in affected)
+        end = max(c.end.date() for c in affected)
+        original = history._parse_history(ticker, start_date=start, end_date=end)
+        daily = candles if interval == 24 else _parse_candles(
+            ticker, start_date=start.isoformat(), end_date=end.isoformat(), interval=24,
+        )
+        by_date = {c.start.date(): c for c in daily}
+        for row in original:
+            reference = by_date.get(row.date)
+            if reference is not None and row.currency == reference.currency:
+                price_factors[row.date] = _split_price_factor(row, reference)
+    for candle in affected:
+        known = 1.0
+        for action in actions:
+            if candle.end.date() < action.date:
+                known *= action.mult
+        dates = (candle.start.date() + datetime.timedelta(days=offset)
+                 for offset in range((candle.end.date() - candle.start.date()).days + 1))
+        factors = [price_factors[date] for date in dates if date in price_factors]
+        applied = factors[0] if factors and all(f == factors[0] for f in factors) else 1.0
+        # ISS can adjust candle prices while leaving volume in original units.
+        # Undo the price adjustment already present before applying known splits.
+        volume = candle.volume
+        candle.mult(applied / known)
+        candle.volume = volume * known if volume is not None else None
+
+
 def get_candles(
     ticker: tickers.Ticker,
     start_date: T.Optional[T.Union[datetime.datetime, datetime.date, str]] = None,
@@ -194,13 +250,10 @@ def get_candles(
     ticker_splits = [split for split in splits.get_splits() if split.secid in [t.secid for t in prev_tickers]]
     candles = []
     for t in prev_tickers:
-        candles.append(_parse_candles(t, start_date=start_date, end_date=end_date, interval=interval))
-    result = _merge_candles_list(candles, ticker.currency)
-    for split in ticker_splits:
-        for candle in result:
-            if candle.end.date() < split.date:
-                candle.mult(1 / split.mult)
-    return result
+        series = _parse_candles(t, start_date=start_date, end_date=end_date, interval=interval)
+        _adjust_candle_splits(t, series, ticker_splits, interval)
+        candles.append(series)
+    return _merge_candles_list(candles, ticker.currency)
 
 
 def get_candles_batch(
