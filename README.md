@@ -8,6 +8,21 @@
 - `pip install moexapi`
 - `git clone https://github.com/kventinel/moexapi.git`
 
+## Tests
+
+Install pytest into the Python environment containing the package dependencies,
+then run the whole suite:
+
+```sh
+python3 -m pip install pytest
+./run_tests.sh
+```
+
+The script works from any directory and forwards arguments to pytest, for example
+`./run_tests.sh -q` or `./run_tests.sh --collect-only -q`.
+Use `PYTHON=/path/to/python ./run_tests.sh` to select an interpreter.
+Some tests call the live MOEX API and require network access.
+
 ## Examples
 
 ### Ticker
